@@ -17,6 +17,7 @@ export default function Home() {
   // Formulario
   const [nombre, setNombre] = useState('');
   const [documento, setDocumento] = useState('');
+  const [celular, setCelular] = useState(''); // <-- NUEVO: Estado para el celular
   const [instrumento, setInstrumento] = useState('');
   const [marcaSerie, setMarcaSerie] = useState('');
   const [estadoInstrumento, setEstadoInstrumento] = useState('Excelente');
@@ -99,6 +100,7 @@ export default function Home() {
         {
           nombre: nombre.trim(),
           documento: documento.trim(),
+          celular: celular.trim(), // <-- NUEVO: Guardar celular
           proceso: procesoActivo,
           instrumento: instrumento.trim(),
           marca_serie: marcaSerie.trim() || 'No especificada',
@@ -116,6 +118,7 @@ export default function Home() {
       cargarDatos();
       setNombre('');
       setDocumento('');
+      setCelular(''); // <-- NUEVO: Limpiar campo celular
       setInstrumento('');
       setMarcaSerie('');
       setEstadoInstrumento('Excelente');
@@ -268,6 +271,14 @@ export default function Home() {
               onChange={(e) => setDocumento(e.target.value)}
               className={inputStyle}
             />
+            {/* NUEVO CAMPO DE CELULAR */}
+            <input
+              type="tel"
+              placeholder="Número de celular"
+              value={celular}
+              onChange={(e) => setCelular(e.target.value)}
+              className={inputStyle}
+            />
             <input
               type="text"
               placeholder="Instrumento"
@@ -347,6 +358,20 @@ export default function Home() {
                       {integrante.documento && (
                         <p className="text-xs text-slate-400 mt-1">
                           Documento: {integrante.documento}
+                        </p>
+                      )}
+                      {/* CELULAR INTERACTIVO (ENLACE A WHATSAPP) */}
+                      {integrante.celular && (
+                        <p className="text-xs mt-1">
+                          <a
+                            href={`https://wa.me/57${integrante.celular.replace(/\D/g, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-emerald-400 hover:underline inline-flex items-center gap-1"
+                            title="Abrir WhatsApp"
+                          >
+                            💬 Celular: {integrante.celular}
+                          </a>
                         </p>
                       )}
                       <p className="text-xs text-slate-400 mt-1">
