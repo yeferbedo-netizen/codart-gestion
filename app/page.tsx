@@ -1,4 +1,3 @@
-TypeScript
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -8,6 +7,9 @@ export default function Home() {
   const [procesoActivo, setProcesoActivo] = useState('Banda Filarmónica');
   const [integrantes, setIntegrantes] = useState<any[]>([]);
   const [cargando, setCargando] = useState(true);
+
+  // Estado para el Buscador
+  const [busqueda, setBusqueda] = useState('');
 
   // Autenticación de Administrador
   const [sesion, setSesion] = useState<any>(null);
@@ -194,9 +196,22 @@ export default function Home() {
     setIntegrantes(integrantes.filter((integrante) => integrante.id !== id));
   };
 
-  const filtrados = integrantes.filter(
-    (integrante) => integrante.proceso === procesoActivo
-  );
+  // LÓGICA DE FILTRADO POR PROCESO Y BÚSQUEDA
+  const filtrados = integrantes.filter((integrante) => {
+    const coincideProceso = integrante.proceso === procesoActivo;
+    const termino = busqueda.toLowerCase().trim();
+
+    if (!termino) return coincideProceso;
+
+    const coincideTexto =
+      (integrante.nombre && integrante.nombre.toLowerCase().includes(termino)) ||
+      (integrante.documento && integrante.documento.toLowerCase().includes(termino)) ||
+      (integrante.instrumento && integrante.instrumento.toLowerCase().includes(termino)) ||
+      (integrante.celular && integrante.celular.toLowerCase().includes(termino)) ||
+      (integrante.marca_serie && integrante.marca_serie.toLowerCase().includes(termino));
+
+    return coincideProceso && coincideTexto;
+  });
 
   const inputStyle =
     'w-full bg-slate-50 p-3 rounded-xl border border-slate-200 text-slate-800 outline-none focus:border-blue-600 focus:bg-white transition';
@@ -216,7 +231,9 @@ export default function Home() {
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
               CODART
             </h1>
-            <p className="text-xs text-slate-500 font-medium">Gestión de Integrantes e Instrumentos</p>
+            <p className="text-xs text-slate-500 font-medium">
+              Gestión de Integrantes e Instrumentos
+            </p>
           </div>
         </div>
         <div>
@@ -290,7 +307,9 @@ export default function Home() {
         {['Banda Filarmónica', 'Banda de Marcha', 'Prebanda'].map((p) => (
           <button
             key={p}
-            onClick={() => setProcesoActivo(p)}
+            onClick={() => {
+              setProcesoActivo(p);
+            }}
             className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition cursor-pointer shadow-xs ${
               procesoActivo === p
                 ? 'bg-blue-600 text-white shadow-sm'
@@ -401,6 +420,31 @@ export default function Home() {
             )}
           </div>
 
+          {/* BUSCADOR */}
+          {sesion && (
+            <div className="relative mb-4">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 text-sm">
+                🔍
+              </span>
+              <input
+                type="text"
+                placeholder="Buscar por nombre, documento, instrumento..."
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                className="w-full bg-slate-50 pl-9 pr-9 py-2.5 rounded-xl border border-slate-200 text-slate-800 text-sm outline-none focus:border-blue-600 focus:bg-white transition"
+              />
+              {busqueda && (
+                <button
+                  type="button"
+                  onClick={() => setBusqueda('')}
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 cursor-pointer text-xs"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          )}
+
           {!sesion ? (
             <div className="text-center py-20 text-slate-400 space-y-3">
               <p className="text-3xl">🔒</p>
@@ -413,10 +457,12 @@ export default function Home() {
             <div className="text-center py-10 text-slate-500">Cargando registros...</div>
           ) : filtrados.length === 0 ? (
             <div className="text-center py-10 text-slate-400 text-sm">
-              No hay integrantes registrados en este proceso.
+              {busqueda
+                ? `No se encontraron coincidencias para "${busqueda}".`
+                : 'No hay integrantes registrados en este proceso.'}
             </div>
           ) : (
-            <div className="space-y-3 max-h-[550px] overflow-y-auto pr-1">
+            <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
               {filtrados.map((integrante) => (
                 <div
                   key={integrante.id}
@@ -425,7 +471,9 @@ export default function Home() {
                   {editandoId === integrante.id ? (
                     /* MODO EDICIÓN */
                     <div className="space-y-2">
-                      <p className="text-xs font-bold text-blue-600 mb-1">Editando información:</p>
+                      <p className="text-xs font-bold text-blue-600 mb-1">
+                        Editando información:
+                      </p>
                       <input
                         type="text"
                         value={editNombre}
@@ -504,19 +552,25 @@ export default function Home() {
                     /* MODO VISTA NORMAL */
                     <div className="flex justify-between gap-4">
                       <div>
-                        <h3 className="font-bold text-slate-900">{integrante.nombre}</h3>
+                        <h3 className="font-bold text-slate-900">
+                          {integrante.nombre}
+                        </h3>
                         <p className="text-sm text-blue-600 font-semibold mt-0.5">
                           🎵 {integrante.instrumento}
                         </p>
                         {integrante.documento && (
                           <p className="text-xs text-slate-500 mt-1">
-                            Documento: {integrante.tipo_documento || 'C.C.'} {integrante.documento}
+                            Documento: {integrante.tipo_documento || 'C.C.'}{' '}
+                            {integrante.documento}
                           </p>
                         )}
                         {integrante.celular && (
                           <p className="text-xs mt-1">
                             <a
-                              href={`https://wa.me/57${integrante.celular.replace(/\D/g, '')}`}
+                              href={`https://wa.me/57${integrante.celular.replace(
+                                /\D/g,
+                                ''
+                              )}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-emerald-600 hover:underline inline-flex items-center gap-1 font-medium"
@@ -530,7 +584,10 @@ export default function Home() {
                           Marca / Serie: {integrante.marca_serie || 'No especificada'}
                         </p>
                         <p className="text-xs text-slate-500 mt-1">
-                          Estado: <span className="font-medium text-slate-700">{integrante.estado_instrumento}</span>
+                          Estado:{' '}
+                          <span className="font-medium text-slate-700">
+                            {integrante.estado_instrumento}
+                          </span>
                         </p>
                       </div>
 
