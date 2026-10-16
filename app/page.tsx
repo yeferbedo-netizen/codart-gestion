@@ -226,7 +226,7 @@ export default function Home() {
         <div className="flex items-center gap-3">
           {/* LOGO DE CODART */}
           <img 
-            src="/logo.png" 
+            src="/logo.jpg" 
             alt="Logo CODART" 
             className="w-12 h-12 object-contain"
           />
