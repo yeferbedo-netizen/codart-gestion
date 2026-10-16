@@ -4,12 +4,11 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from './lib/supabase';
 
 export default function Home() {
-  const [moduloActivo, setModuloActivo] = useState<'integrantes' | 'partituras'>('integrantes');
+  const [moduloActivo, setModuloActivo] = useState<'integrantes' | 'partituras'>('partituras');
   const [procesoActivo, setProcesoActivo] = useState('Banda Filarmónica');
   
   // INTEGRANTES Y SOLICITUDES
   const [integrantes, setIntegrantes] = useState<any[]>([]);
-  const [cargando, setCargando] = useState(true);
   const [busqueda, setBusqueda] = useState('');
   const [mostrarModalInscripcion, setMostrarModalInscripcion] = useState(false);
   const [mostrarQR, setMostrarQR] = useState(false);
@@ -99,7 +98,6 @@ export default function Home() {
   };
 
   const cargarDatos = async () => {
-    setCargando(true);
     const { data, error } = await supabase
       .from('integrantes')
       .select('*')
@@ -107,7 +105,6 @@ export default function Home() {
 
     if (error) console.error('Error cargando integrantes:', error.message);
     if (data) setIntegrantes(data);
-    setCargando(false);
   };
 
   const cargarPartituras = async () => {
@@ -266,18 +263,6 @@ export default function Home() {
     }
   };
 
-  const cambiarEstadoRegistro = async (id: string, nuevoEstado: string) => {
-    if (!sesionAdmin) return;
-    if (nuevoEstado === 'Eliminar') {
-      const confirmar = window.confirm('¿Deseas rechazar y eliminar esta solicitud de registro?');
-      if (!confirmar) return;
-      await supabase.from('integrantes').delete().eq('id', id);
-    } else {
-      await supabase.from('integrantes').update({ estado_registro: nuevoEstado }).eq('id', id);
-    }
-    cargarDatos();
-  };
-
   const eliminarIntegrante = async (id: string) => {
     if (!sesionAdmin) return;
     const confirmar = window.confirm('¿Seguro que deseas eliminar este integrante?');
@@ -392,17 +377,6 @@ export default function Home() {
     cargarPartituras();
   };
 
-  const eliminarParticela = async (id: string) => {
-    if (!sesionAdmin) return;
-    const confirmar = window.confirm('¿Deseas eliminar este archivo?');
-    if (!confirmar) return;
-
-    await supabase.from('particelas').delete().eq('id', id);
-    cargarPartituras();
-  };
-
-  // FILTRADOS
-  const pendientes = integrantes.filter((i) => i.estado_registro === 'Pendiente');
   const filtrados = integrantes.filter((integrante) => {
     const esAprobado = integrante.estado_registro !== 'Pendiente';
     const coincideProceso = integrante.proceso === procesoActivo;
@@ -458,6 +432,8 @@ export default function Home() {
   const appUrl = typeof window !== 'undefined' ? window.location.href : 'https://codart-gestion.vercel.app';
   const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(appUrl)}`;
 
+  const haySesion = sesionAdmin || sesionIntegrante;
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-800 p-4 md:p-8">
       {/* ENCABEZADO PRINCIPAL CON LOS 4 BOTONES EXACTOS */}
@@ -478,7 +454,7 @@ export default function Home() {
           </div>
         </div>
         
-        {/* LOS 4 BOTONES SOLICITADOS PARA VISITANTES, O BOTONES DE SALIDA SI YA ESTÁN LOGUEADOS */}
+        {/* LOS 4 BOTONES SOLICITADOS PARA VISITANTES */}
         <div className="flex items-center gap-2 flex-wrap">
           {sesionAdmin ? (
             <div className="flex items-center gap-2">
@@ -522,12 +498,12 @@ export default function Home() {
                 <span>🔗</span> Código QR
               </button>
 
-              {/* 3. Botón Iniciar Sesión para Estudiantes / Integrantes */}
+              {/* 3. Botón Iniciar Sesión Estudiantes */}
               <button
                 onClick={() => setMostrarModalIntegrante(true)}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs md:text-sm font-bold px-3 py-2.5 rounded-xl shadow-sm transition cursor-pointer flex items-center gap-1.5"
               >
-                <span>🎵</span> Iniciar sesión (Estudiantes)
+                <span>🎵</span> Iniciar sesión estudiantes
               </button>
 
               {/* 4. Botón Acceso Admin */}
@@ -535,62 +511,11 @@ export default function Home() {
                 onClick={() => setMostrarModalAdmin(true)}
                 className="bg-slate-800 hover:bg-slate-900 text-white text-xs md:text-sm font-bold px-3 py-2.5 rounded-xl shadow-sm transition cursor-pointer flex items-center gap-1.5"
               >
-                <span>🔐</span> Acceso Admin
+                <span>🔐</span> Acceso admin
               </button>
             </div>
           )}
         </div>
-      </div>
-
-      {/* SELECTOR DE MÓDULO (SOLO APARECE SI HAY SESIÓN ACTIVA DE ADMIN O ESTUDIANTE) */}
-      {(sesionAdmin || sesionIntegrante) && (
-        <div className="flex gap-2 mb-6 bg-slate-200/60 p-1.5 rounded-2xl max-w-md mx-auto md:mx-0 animate-fade-in">
-          <button
-            onClick={() => setModuloActivo('partituras')}
-            className={`flex-1 py-2.5 rounded-xl text-xs md:text-sm font-bold transition cursor-pointer text-center flex items-center justify-center gap-2 ${
-              moduloActivo === 'partituras'
-                ? 'bg-white text-blue-700 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <span>📂</span> Repositorio (Drive)
-          </button>
-          <button
-            onClick={() => setModuloActivo('integrantes')}
-            className={`flex-1 py-2.5 rounded-xl text-xs md:text-sm font-bold transition cursor-pointer text-center flex items-center justify-center gap-2 ${
-              moduloActivo === 'integrantes'
-                ? 'bg-white text-blue-700 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <span>👥</span> Integrantes
-          </button>
-        </div>
-      )}
-
-      {/* PESTAÑAS DE AGRUPACIONES */}
-      <div className="flex gap-3 mb-6 flex-wrap">
-        {[
-          'Banda Filarmónica',
-          'Banda de Marcha',
-          'Prebanda',
-          'Proyecto de Música Escolar',
-        ].map((p) => (
-          <button
-            key={p}
-            onClick={() => {
-              setProcesoActivo(p);
-              setObraSeleccionadaDrive(null);
-            }}
-            className={`px-5 py-2.5 rounded-xl font-semibold text-xs md:text-sm transition cursor-pointer shadow-xs ${
-              procesoActivo === p
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
-            }`}
-          >
-            {p}
-          </button>
-        ))}
       </div>
 
       {/* MODAL CÓDIGO QR */}
@@ -818,276 +743,263 @@ export default function Home() {
         </div>
       )}
 
-      {/* VISTA 1: REPOSITORIO TIPO DRIVE (SOLO VISIBLE SI HAY SESIÓN ACTIVA) */}
-      {moduloActivo === 'partituras' && (sesionAdmin || sesionIntegrante) && (
+      {/* CONTENIDO CONDICIONAL: SI HAY SESIÓN SE MUESTRA TODO; SI ES VISITANTE, ÚNICAMENTE LA BIENVENIDA */}
+      {haySesion ? (
         <div className="space-y-6">
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
-              <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                <span>📂</span> Repositorio Google Drive — {procesoActivo}
-              </h2>
-              <p className="text-xs text-slate-500">
-                {obraSeleccionadaDrive ? `Carpeta: "${obraSeleccionadaDrive.titulo}"` : sesionIntegrante ? `Hola ${sesionIntegrante.nombre}, consulta y descarga tus partituras.` : 'Explora las carpetas de obras musicales.'}
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3 w-full md:w-auto flex-wrap">
-              {!obraSeleccionadaDrive && (
-                <div className="relative flex-1 md:w-64">
-                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 text-sm">🔍</span>
-                  <input
-                    type="text"
-                    placeholder="Buscar carpeta..."
-                    value={busquedaPartitura}
-                    onChange={(e) => setBusquedaPartitura(e.target.value)}
-                    className="w-full bg-slate-50 pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-xs outline-none focus:border-blue-600"
-                  />
-                </div>
-              )}
-
-              {sesionAdmin && !obraSeleccionadaDrive && (
-                <button
-                  onClick={() => setMostrarModalNuevaCarpeta(true)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs transition cursor-pointer whitespace-nowrap flex items-center gap-1.5"
-                >
-                  <span>📁+</span> Nueva Carpeta
-                </button>
-              )}
-
-              {obraSeleccionadaDrive && (
-                <button
-                  onClick={() => setObraSeleccionadaDrive(null)}
-                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-4 py-2.5 rounded-xl transition cursor-pointer"
-                >
-                  ◀ Volver a Carpetas
-                </button>
-              )}
-            </div>
+          {/* SELECTOR DE MÓDULO */}
+          <div className="flex gap-2 mb-6 bg-slate-200/60 p-1.5 rounded-2xl max-w-md mx-auto md:mx-0">
+            <button
+              onClick={() => setModuloActivo('partituras')}
+              className={`flex-1 py-2.5 rounded-xl text-xs md:text-sm font-bold transition cursor-pointer text-center flex items-center justify-center gap-2 ${
+                moduloActivo === 'partituras'
+                  ? 'bg-white text-blue-700 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <span>📂</span> Repositorio (Drive)
+            </button>
+            <button
+              onClick={() => setModuloActivo('integrantes')}
+              className={`flex-1 py-2.5 rounded-xl text-xs md:text-sm font-bold transition cursor-pointer text-center flex items-center justify-center gap-2 ${
+                moduloActivo === 'integrantes'
+                  ? 'bg-white text-blue-700 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <span>👥</span> Integrantes
+            </button>
           </div>
 
-          {!obraSeleccionadaDrive ? (
-            obrasFiltradas.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-400 space-y-3">
-                <p className="text-4xl">📁</p>
-                <p className="font-semibold text-slate-700 text-sm">No hay carpetas en {procesoActivo}</p>
-                <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                  {sesionAdmin ? 'Haz clic en el botón superior "Nueva Carpeta" para empezar a organizar tu repertorio musical.' : 'Aún no se han creado carpetas musicales.'}
-                </p>
-                {sesionAdmin && (
-                  <button
-                    onClick={() => setMostrarModalNuevaCarpeta(true)}
-                    className="mt-2 bg-blue-600 text-white font-bold text-xs px-4 py-2.5 rounded-xl inline-flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <span>📁+</span> Crear mi primera carpeta
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {obrasFiltradas.map((obra) => {
-                  const archivosEnObra = particelas.filter((p) => p.obra_id === obra.id);
+          {/* PESTAÑAS DE AGRUPACIONES */}
+          <div className="flex gap-3 mb-6 flex-wrap">
+            {[
+              'Banda Filarmónica',
+              'Banda de Marcha',
+              'Prebanda',
+              'Proyecto de Música Escolar',
+            ].map((p) => (
+              <button
+                key={p}
+                onClick={() => {
+                  setProcesoActivo(p);
+                  setObraSeleccionadaDrive(null);
+                }}
+                className={`px-5 py-2.5 rounded-xl font-semibold text-xs md:text-sm transition cursor-pointer shadow-xs ${
+                  procesoActivo === p
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
 
-                  return (
-                    <div
-                      key={obra.id}
-                      onClick={() => setObraSeleccionadaDrive(obra)}
-                      className="bg-white border border-slate-200 hover:border-blue-400 p-5 rounded-2xl shadow-xs transition cursor-pointer flex flex-col justify-between group relative"
-                    >
-                      <div>
-                        <div className="flex justify-between items-start mb-3">
-                          <span className="text-3xl">📁</span>
-                          {sesionAdmin && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                eliminarCarpetaObra(obra.id);
-                              }}
-                              className="text-slate-300 hover:text-rose-600 font-bold p-1 transition"
-                              title="Eliminar carpeta"
-                            >
-                              🗑️
-                            </button>
-                          )}
-                        </div>
-                        <h3 className="font-bold text-slate-900 text-sm group-hover:text-blue-600 transition truncate">
-                          {obra.titulo}
-                        </h3>
-                        <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                          {obra.compositor_arreglista && obra.compositor_arreglista !== 'No especificado' ? obra.compositor_arreglista : 'Sin compositor'}
-                        </p>
-                      </div>
-
-                      <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center text-[11px] text-slate-400 font-medium">
-                        <span>{archivosEnObra.length} archivo(s)</span>
-                        <span className="text-blue-600 opacity-0 group-hover:opacity-100 transition font-bold">Abrir →</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )
-          ) : (
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b border-slate-100">
+          {moduloActivo === 'partituras' ? (
+            <div className="space-y-6">
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                    <span>📂</span> {obraSeleccionadaDrive.titulo}
-                  </h3>
+                  <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                    <span>📂</span> Repositorio Google Drive — {procesoActivo}
+                  </h2>
                   <p className="text-xs text-slate-500">
-                    Compositor: {obraSeleccionadaDrive.compositor_arreglista || 'No especificado'}
-                    {obraSeleccionadaDrive.link_audio && (
-                      <a href={obraSeleccionadaDrive.link_audio} target="_blank" rel="noopener noreferrer" className="ml-3 text-blue-600 hover:underline">
-                        🎧 Audio Guía
-                      </a>
-                    )}
+                    {obraSeleccionadaDrive ? `Carpeta: "${obraSeleccionadaDrive.titulo}"` : `Hola ${sesionIntegrante?.nombre || 'Admin'}, consulta y gestiona tus partituras.`}
                   </p>
                 </div>
 
-                {sesionAdmin && (
-                  <button
-                    onClick={() => setMostrarModalSubirArchivos(true)}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition shadow-xs cursor-pointer flex items-center gap-1.5"
-                  >
-                    <span>📤</span> Subir Archivos PDF
-                  </button>
-                )}
+                <div className="flex items-center gap-3 w-full md:w-auto flex-wrap">
+                  {!obraSeleccionadaDrive && (
+                    <div className="relative flex-1 md:w-64">
+                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 text-sm">🔍</span>
+                      <input
+                        type="text"
+                        placeholder="Buscar carpeta..."
+                        value={busquedaPartitura}
+                        onChange={(e) => setBusquedaPartitura(e.target.value)}
+                        className="w-full bg-slate-50 pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-xs outline-none focus:border-blue-600"
+                      />
+                    </div>
+                  )}
+
+                  {sesionAdmin && !obraSeleccionadaDrive && (
+                    <button
+                      onClick={() => setMostrarModalNuevaCarpeta(true)}
+                      className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs transition cursor-pointer whitespace-nowrap flex items-center gap-1.5"
+                    >
+                      <span>📁+</span> Nueva Carpeta
+                    </button>
+                  )}
+
+                  {obraSeleccionadaDrive && (
+                    <button
+                      onClick={() => setObraSeleccionadaDrive(null)}
+                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-4 py-2.5 rounded-xl transition cursor-pointer"
+                    >
+                      ◀ Volver a Carpetas
+                    </button>
+                  )}
+                </div>
               </div>
 
-              {particelas.filter((p) => p.obra_id === obraSeleccionadaDrive.id).length === 0 ? (
-                <div className="text-center py-16 text-slate-400 space-y-3">
-                  <p className="text-3xl">📄</p>
-                  <p className="font-semibold text-slate-700 text-sm">Esta carpeta está vacía</p>
-                  <p className="text-xs text-slate-500">No hay partituras subidas en esta obra.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                  {particelas
-                    .filter((p) => p.obra_id === obraSeleccionadaDrive.id)
-                    .map((archivo) => (
-                      <div key={archivo.id} className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex justify-between items-center gap-2 hover:border-blue-300 transition">
-                        <div className="truncate">
-                          <p className="text-xs font-bold text-slate-800 truncate">📄 {archivo.instrumento}</p>
-                          <span className="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md font-semibold inline-block mt-1">
-                            {archivo.familia}
-                          </span>
+              {!obraSeleccionadaDrive ? (
+                obrasFiltradas.length === 0 ? (
+                  <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-400 space-y-3">
+                    <p className="text-4xl">📁</p>
+                    <p className="font-semibold text-slate-700 text-sm">No hay carpetas en {procesoActivo}</p>
+                    {sesionAdmin && (
+                      <button
+                        onClick={() => setMostrarModalNuevaCarpeta(true)}
+                        className="mt-2 bg-blue-600 text-white font-bold text-xs px-4 py-2.5 rounded-xl inline-flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <span>📁+</span> Crear mi primera carpeta
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {obrasFiltradas.map((obra) => {
+                      const archivosEnObra = particelas.filter((p) => p.obra_id === obra.id);
+                      return (
+                        <div
+                          key={obra.id}
+                          onClick={() => setObraSeleccionadaDrive(obra)}
+                          className="bg-white border border-slate-200 hover:border-blue-400 p-5 rounded-2xl shadow-xs transition cursor-pointer flex flex-col justify-between group relative"
+                        >
+                          <div>
+                            <div className="flex justify-between items-start mb-3">
+                              <span className="text-3xl">📁</span>
+                              {sesionAdmin && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    eliminarCarpetaObra(obra.id);
+                                  }}
+                                  className="text-slate-300 hover:text-rose-600 font-bold p-1 transition"
+                                  title="Eliminar carpeta"
+                                >
+                                  🗑️
+                                </button>
+                              )}
+                            </div>
+                            <h3 className="font-bold text-slate-900 text-sm group-hover:text-blue-600 transition truncate">
+                              {obra.titulo}
+                            </h3>
+                            <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                              {obra.compositor_arreglista && obra.compositor_arreglista !== 'No especificado' ? obra.compositor_arreglista : 'Sin compositor'}
+                            </p>
+                          </div>
+                          <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center text-[11px] text-slate-400 font-medium">
+                            <span>{archivosEnObra.length} archivo(s)</span>
+                            <span className="text-blue-600 opacity-0 group-hover:opacity-100 transition font-bold">Abrir →</span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <a
-                            href={archivo.url_pdf}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs bg-white border border-slate-200 text-blue-700 font-bold px-3 py-1.5 rounded-lg hover:bg-blue-50 transition"
-                          >
-                            👁️ Ver PDF
+                      );
+                    })}
+                  </div>
+                )
+              ) : (
+                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6">
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b border-slate-100">
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                        <span>📂</span> {obraSeleccionadaDrive.titulo}
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        Compositor: {obraSeleccionadaDrive.compositor_arreglista || 'No especificado'}
+                        {obraSeleccionadaDrive.link_audio && (
+                          <a href={obraSeleccionadaDrive.link_audio} target="_blank" rel="noopener noreferrer" className="ml-3 text-blue-600 hover:underline">
+                            🎧 Audio Guía
                           </a>
-                        </div>
-                      </div>
-                    ))}
+                        )}
+                      </p>
+                    </div>
+
+                    {sesionAdmin && (
+                      <button
+                        onClick={() => setMostrarModalSubirArchivos(true)}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition shadow-xs cursor-pointer flex items-center gap-1.5"
+                      >
+                        <span>📤</span> Subir Archivos PDF
+                      </button>
+                    )}
+                  </div>
+
+                  {particelas.filter((p) => p.obra_id === obraSeleccionadaDrive.id).length === 0 ? (
+                    <div className="text-center py-16 text-slate-400 space-y-3">
+                      <p className="text-3xl">📄</p>
+                      <p className="font-semibold text-slate-700 text-sm">Esta carpeta está vacía</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                      {particelas
+                        .filter((p) => p.obra_id === obraSeleccionadaDrive.id)
+                        .map((archivo) => (
+                          <div key={archivo.id} className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex justify-between items-center gap-2 hover:border-blue-300 transition">
+                            <div className="truncate">
+                              <p className="text-xs font-bold text-slate-800 truncate">📄 {archivo.instrumento}</p>
+                              <span className="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md font-semibold inline-block mt-1">
+                                {archivo.familia}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <a
+                                href={archivo.url_pdf}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs bg-white border border-slate-200 text-blue-700 font-bold px-3 py-1.5 rounded-lg hover:bg-blue-50 transition"
+                              >
+                                👁️ Ver PDF
+                              </a>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-          )}
-        </div>
-      )}
-
-      {/* VISTA 2: INTEGRANTES (O BIEN VISTA PÚBLICA DE INSCRIPCIÓN Y AGRUPACIONES) */}
-      {(moduloActivo === 'integrantes' || (!sesionAdmin && !sesionIntegrante)) && (
-        <div className="space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900 mb-2">🎵 Agrupaciones Musicales CODART</h2>
-                <p className="text-sm text-slate-600 mb-4">Proceso seleccionado: <strong className="text-blue-600">{procesoActivo}</strong>.</p>
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-xs text-slate-600 space-y-2">
-                  <p className="font-bold text-slate-800">¿Eres estudiante o músico de CODART?</p>
-                  <p>Inicia sesión arriba con tu número de documento y la contraseña <strong>codart</strong> para acceder a las partituras.</p>
-                </div>
-              </div>
-              <button onClick={() => setMostrarModalInscripcion(true)} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold text-sm shadow-xs mt-4">
-                📝 Realizar Inscripción en {procesoActivo}
-              </button>
-            </div>
-
+          ) : (
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-bold text-slate-900">Integrantes Oficiales ({filtrados.length})</h2>
-              </div>
-
-              {sesionAdmin ? (
-                <>
-                  <div className="relative mb-4">
-                    <input type="text" placeholder="Buscar integrante..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} className="w-full bg-slate-50 pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none" />
-                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">🔍</span>
-                  </div>
-                  <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
-                    {filtrados.map((integrante) => (
-                      <div key={integrante.id} className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex justify-between items-center">
-                        <div>
-                          <h3 className="font-bold text-slate-900">{integrante.nombre}</h3>
-                          <p className="text-xs text-blue-600 font-semibold">🎵 {integrante.instrumento}</p>
-                        </div>
-                        <button onClick={() => eliminarIntegrante(integrante.id)} className="bg-rose-50 text-rose-600 text-xs font-bold px-2.5 py-1.5 rounded-lg">🗑️</button>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <div className="text-center py-16 text-slate-400 space-y-2">
-                  <p className="text-4xl">🔒</p>
-                  <p className="font-semibold text-slate-700">Información Protegida</p>
-                  <p className="text-xs text-slate-500">La lista de integrantes solo es visible para el Administrador.</p>
+              <h2 className="text-lg font-bold text-slate-900 mb-4">Integrantes Oficiales ({filtrados.length})</h2>
+              {sesionAdmin && (
+                <div className="relative mb-4">
+                  <input type="text" placeholder="Buscar integrante..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} className="w-full bg-slate-50 pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none" />
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">🔍</span>
                 </div>
               )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* CALENDARIO */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm max-w-xl mx-auto mt-8">
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-2">
-            <span className="text-xl">📅</span>
-            <h2 className="text-lg font-bold text-slate-900">Calendario de Eventos y Ensayos</h2>
-          </div>
-          {fechaCalendario && (
-            <div className="flex items-center gap-2">
-              <button onClick={() => cambiarMes(-1)} className="p-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold cursor-pointer">◀</button>
-              <span className="text-sm font-bold text-blue-600 min-w-[130px] text-center">
-                {nombresMeses[fechaCalendario.getMonth()]} {fechaCalendario.getFullYear()}
-              </span>
-              <button onClick={() => cambiarMes(1)} className="p-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold cursor-pointer">▶</button>
+              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
+                {filtrados.map((integrante) => (
+                  <div key={integrante.id} className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex justify-between items-center">
+                    <div>
+                      <h3 className="font-bold text-slate-900">{integrante.nombre}</h3>
+                      <p className="text-xs text-blue-600 font-semibold">🎵 {integrante.instrumento}</p>
+                    </div>
+                    {sesionAdmin && (
+                      <button onClick={() => eliminarIntegrante(integrante.id)} className="bg-rose-50 text-rose-600 text-xs font-bold px-2.5 py-1.5 rounded-lg">🗑️</button>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
-
-        <div className="grid grid-cols-7 gap-2 text-center text-xs font-bold text-slate-400 mb-2">
-          <span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span>
+      ) : (
+        /* VISTA LIMPIA PARA VISITANTES (ÚNICAMENTE TARJETA DE BIENVENIDA) */
+        <div className="text-center py-12 space-y-6">
+          <div className="bg-white p-8 rounded-3xl border border-slate-200 max-w-lg mx-auto shadow-sm space-y-4">
+            <h2 className="text-xl font-bold text-slate-900">Bienvenido a CODART</h2>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Selecciona <strong>Inscripción</strong> en la parte superior para unirte a nuestros procesos musicales o inicia sesión si ya formas parte de la comunidad.
+            </p>
+            <button
+              onClick={() => setMostrarModalInscripcion(true)}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-6 py-3 rounded-xl transition cursor-pointer shadow-xs inline-flex items-center gap-2"
+            >
+              <span>📝</span> Realizar Inscripción
+            </button>
+          </div>
         </div>
-
-        <div className="grid grid-cols-7 gap-2 text-center">
-          {obtenerDiasDelMes(fechaCalendario).map((dia, index) => {
-            if (!dia) return <div key={`empty-${index}`} className="h-10"></div>;
-            const esHoy =
-              hoy &&
-              fechaCalendario &&
-              dia === hoy.getDate() &&
-              fechaCalendario.getMonth() === hoy.getMonth() &&
-              fechaCalendario.getFullYear() === hoy.getFullYear();
-
-            return (
-              <div
-                key={dia}
-                className={`h-10 rounded-xl flex items-center justify-center text-sm font-semibold transition cursor-pointer ${
-                  esHoy ? 'bg-blue-600 text-white font-bold ring-2 ring-blue-300' : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-100'
-                }`}
-              >
-                {dia}
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      )}
     </main>
   );
 }
