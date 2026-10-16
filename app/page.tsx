@@ -263,9 +263,6 @@ export default function Home() {
         nombre_acudiente: nombreAcudiente.trim() || null,
         documento_acudiente: documentoAcudiente.trim() || null,
         celular_acudiente: celularAcudiente.trim() || null,
-        proceso: procesoInscripcion,
-        instrumento: instrumento.trim(),
-        marca_serie: marcaSerie.trim() || 'No especificada',
       }
     ], { onConflict: 'documento' });
 
@@ -281,7 +278,8 @@ export default function Home() {
     ], { onConflict: 'documento,proceso' });
 
     if (errorProc) {
-      console.warn('Proceso warning:', errorProc.message);
+      alert('Error al inscribirse en el proceso: ' + errorProc.message);
+      return;
     }
 
     cargarDatos();
@@ -341,13 +339,10 @@ export default function Home() {
         nombre_acudiente: acudienteNombreNewAdmin.trim() || null,
         documento_acudiente: acudienteDocNewAdmin.trim() || null,
         celular_acudiente: acudienteCelNewAdmin.trim() || null,
-        proceso: procesoActivo,
-        instrumento: instrumentoNewAdmin.trim(),
-        marca_serie: marcaNewAdmin.trim() || 'No especificada',
       }
     ], { onConflict: 'documento' });
 
-    await supabase.from('integrante_procesos').upsert([
+    const { error } = await supabase.from('integrante_procesos').upsert([
       {
         documento: docLimpio,
         proceso: procesoActivo,
@@ -357,6 +352,11 @@ export default function Home() {
         estado_registro: 'Aprobado',
       },
     ], { onConflict: 'documento,proceso' });
+
+    if (error) {
+      alert('Error al registrar en el proceso: ' + error.message);
+      return;
+    }
 
     setNombreNewAdmin('');
     setDocNewAdmin('');
@@ -416,9 +416,6 @@ export default function Home() {
       nombre_acudiente: nombreAcudienteEdit.trim() || null,
       documento_acudiente: documentoAcudienteEdit.trim() || null,
       celular_acudiente: celularAcudienteEdit.trim() || null,
-      proceso: procesoEdit,
-      instrumento: instrumentoEdit.trim(),
-      marca_serie: marcaSerieEdit.trim() || 'No especificada',
     }).eq('documento', integranteEditando.documento);
 
     if (integranteEditando.idProceso) {
@@ -579,41 +576,29 @@ export default function Home() {
     return p.estado_registro.trim().toLowerCase() === 'pendiente';
   });
 
-  // CRUCE FLEXIBLE DE INTEGRANTES (INCLUYE REGISTROS DIRECTOS DE LA TABLA "INTEGRANTES")
-  const integrantesFiltrados = integrantes.filter(item => {
-    const proc = procesosIntegrantes.find(p => 
-      p.documento && item.documento && 
-      p.documento.toString().trim() === item.documento.toString().trim()
+  // CRUCE FLEXIBLE DE INTEGRANTES
+  const integrantesFiltrados = procesosEnProcesoActivo(); // se define abajo por claridad
+
+  // Lógica de filtrado de integrantes activos
+  const procesosEnProcesoActivo = procesosIntegrantes.filter(p => {
+    if (!p.proceso || !p.estado_registro) return false;
+    return (
+      p.proceso.trim().toLowerCase() === procesoActivo.trim().toLowerCase() &&
+      p.estado_registro.trim().toLowerCase() === 'aprobado'
     );
+  });
 
-    const procesoEstudiante = proc?.proceso || item.proceso || 'Banda Filarmónica';
-    const estadoEstudiante = proc?.estado_registro || 'Aprobado';
-
-    const coincideProceso = procesoEstudiante.trim().toLowerCase() === procesoActivo.trim().toLowerCase();
-    const esAprobado = estadoEstudiante.trim().toLowerCase() === 'aprobado';
-
-    if (!coincideProceso || !esAprobado) return false;
-
+  const listaIntegrantesMostrables = procesosEnProcesoActivo.map(proc => {
+    const infoPersonal = integrantes.find(i => i.documento && proc.documento && i.documento.toString().trim() === proc.documento.toString().trim());
+    return { ...infoPersonal, ...proc, idProceso: proc.id };
+  }).filter(item => {
     const termino = busqueda.toLowerCase().trim();
     if (!termino) return true;
     return (
       (item.nombre && item.nombre.toLowerCase().includes(termino)) ||
       (item.documento && item.documento.toLowerCase().includes(termino)) ||
-      (item.instrumento && item.instrumento.toLowerCase().includes(termino)) ||
-      (proc?.instrumento && proc.instrumento.toLowerCase().includes(termino))
+      (item.instrumento && item.instrumento.toLowerCase().includes(termino))
     );
-  }).map(item => {
-    const proc = procesosIntegrantes.find(p => 
-      p.documento && item.documento && 
-      p.documento.toString().trim() === item.documento.toString().trim()
-    );
-    return {
-      ...item,
-      instrumento: proc?.instrumento || item.instrumento || 'No especificado',
-      origen_instrumento: proc?.origen_instrumento || item.origen_instrumento || 'Prestado (CODART)',
-      marca_serie: proc?.marca_serie || item.marca_serie || 'No especificada',
-      idProceso: proc?.id || null,
-    };
   });
 
   const obrasFiltradas = obras.filter((o) => {
@@ -882,16 +867,16 @@ export default function Home() {
 
               {/* VISTA COMPACTA TIPO TARJETAS / FILAS VERSÁTILES */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {integrantesFiltrados.length === 0 ? (
+                {listaIntegrantesMostrables.length === 0 ? (
                   <div className="col-span-full bg-white p-8 text-center text-slate-400 rounded-2xl border border-slate-200 text-xs">
                     No hay integrantes activos en {procesoActivo}.
                   </div>
                 ) : (
-                  integrantesFiltrados.map((item) => {
+                  listaIntegrantesMostrables.map((item) => {
                     const wsUrl = obtenerLinkWhatsApp(item.celular || item.celular_acudiente, item.nombre || 'estudiante');
                     return (
                       <div
-                        key={item.idProceso || item.documento}
+                        key={item.idProceso}
                         className="bg-white p-3.5 rounded-2xl border border-slate-200 hover:border-slate-300 shadow-2xs flex justify-between items-start transition space-y-1"
                       >
                         <div className="space-y-1.5">
@@ -935,7 +920,7 @@ export default function Home() {
                               ✏️
                             </button>
                             <button
-                              onClick={() => eliminarProcesoIntegrante(item.idProceso, item.documento)}
+                              onClick={() => eliminarProcesoIntegrante(item.idProceso)}
                               className="text-rose-400 hover:text-rose-700 p-1.5 rounded-lg text-xs hover:bg-rose-50 transition cursor-pointer"
                               title="Eliminar"
                             >
@@ -964,11 +949,12 @@ export default function Home() {
                       i.documento && p.documento && 
                       i.documento.toString().trim() === p.documento.toString().trim()
                     );
+                    const nombreMostrado = info?.nombre || p.nombre || `Estudiante (Doc: ${p.documento})`;
                     return (
                       <div key={p.id} className="py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                         <div>
                           <h4 className="font-bold text-slate-900 text-base">
-                            {info?.nombre || 'Solicitante sin nombre en catálogo'}
+                            {nombreMostrado}
                           </h4>
                           <p className="text-xs text-slate-500">
                             Doc: <strong>{p.documento}</strong> | Proceso: <strong className="text-slate-800">{p.proceso}</strong> | Instrumento: <strong className="text-indigo-600">{p.instrumento}</strong>
@@ -982,7 +968,7 @@ export default function Home() {
                             ✓ Aprobar
                           </button>
                           <button
-                            onClick={() => eliminarProcesoIntegrante(p.id, p.documento)}
+                            onClick={() => eliminarProcesoIntegrante(p.id)}
                             className="bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs px-3 py-2 rounded-xl transition cursor-pointer"
                           >
                             ✕ Rechazar
@@ -1056,7 +1042,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL INSCRIPCIÓN PÚBLICA (SOLO MUESTRA PROCESOS PÚBLICOS) */}
+      {/* MODAL INSCRIPCIÓN PÚBLICA */}
       {mostrarModalInscripcion && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
           <div className="bg-white border border-slate-200 p-6 md:p-8 rounded-3xl w-full max-w-lg relative shadow-2xl my-8">
@@ -1119,7 +1105,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL CONFIRMACIÓN REGISTRO EXITOSO CON NOTIFICACIÓN DE CREDENCIALES */}
+      {/* MODAL CONFIRMACIÓN REGISTRO EXITOSO */}
       {registroExitoso && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white border border-slate-200 p-6 md:p-8 rounded-3xl w-full max-w-sm text-center relative shadow-2xl space-y-4">
