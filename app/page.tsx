@@ -180,6 +180,7 @@ export default function Home() {
 
   const handleLogoutAdmin = async () => {
     await supabase.auth.signOut();
+    setProcesoActivo('Banda Filarmónica');
     setModuloActivo('partituras');
   };
 
@@ -226,6 +227,7 @@ export default function Home() {
   const handleLogoutIntegrante = () => {
     setSesionIntegrante(null);
     localStorage.removeItem('codart_integrante');
+    setProcesoActivo('Banda Filarmónica');
     setModuloActivo('partituras');
   };
 
@@ -555,6 +557,11 @@ export default function Home() {
     return `https://wa.me/${numFinal}?text=${mensaje}`;
   };
 
+  // LISTADO DE PROCESOS DISPONIBLES EN BOTONES DE FILTRO
+  const listaProcesosVisibles = sesionAdmin
+    ? ['Banda Filarmónica', 'Banda de Marcha', 'Prebanda', 'Proyecto de Música Escolar']
+    : ['Banda Filarmónica', 'Banda de Marcha', 'Prebanda'];
+
   // FILTRAR INTEGRANTES CON COINCIDENCIA FLEXIBLE DE PROCESOS
   const procesosEnProcesoActivo = procesosIntegrantes.filter(p => {
     if (!p.proceso) return false;
@@ -667,9 +674,9 @@ export default function Home() {
             )}
           </div>
 
-          {/* SELECCIÓN DE PROGRAMA / PROCESO */}
+          {/* SELECCIÓN DE PROGRAMA / PROCESO (EXCLUSIVO PROYECTO ESCOLAR PARA ADMIN) */}
           <div className="flex gap-2 overflow-x-auto pb-4 mb-6 scrollbar-none">
-            {['Banda Filarmónica', 'Banda de Marcha', 'Prebanda', 'Proyecto de Música Escolar'].map((proc) => (
+            {listaProcesosVisibles.map((proc) => (
               <button
                 key={proc}
                 onClick={() => setProcesoActivo(proc)}
@@ -860,7 +867,7 @@ export default function Home() {
                             <p className="text-[11px] font-semibold text-indigo-600">{item.instrumento} • <span className="text-slate-400 font-normal">{item.origen_instrumento}</span></p>
                           </div>
 
-                          {/* BOTÓN O NUMERO DE REGISTRO LINK A WHATSAPP */}
+                          {/* BOTÓN O NÚMERO DE REGISTRO LINK A WHATSAPP */}
                           <div className="pt-0.5">
                             {wsUrl ? (
                               <a
@@ -1011,7 +1018,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL INSCRIPCIÓN PÚBLICA */}
+      {/* MODAL INSCRIPCIÓN PÚBLICA (SOLO MUESTRA PROCESOS PÚBLICOS) */}
       {mostrarModalInscripcion && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
           <div className="bg-white border border-slate-200 p-6 md:p-8 rounded-3xl w-full max-w-lg relative shadow-2xl my-8">
@@ -1026,7 +1033,6 @@ export default function Home() {
                   <option value="Banda Filarmónica">Banda Filarmónica</option>
                   <option value="Banda de Marcha">Banda de Marcha</option>
                   <option value="Prebanda">Prebanda</option>
-                  <option value="Proyecto de Música Escolar">Proyecto de Música Escolar</option>
                 </select>
               </div>
 
@@ -1043,13 +1049,6 @@ export default function Home() {
                 <input type="number" placeholder="Edad" min="1" max="100" value={edad} onChange={(e) => setEdad(e.target.value)} className={inputStyle} />
                 <input type="tel" placeholder="Celular" value={celular} onChange={(e) => setCelular(e.target.value)} className={inputStyle} />
               </div>
-
-              {procesoInscripcion === 'Proyecto de Música Escolar' && (
-                <div className="bg-indigo-50/70 border border-indigo-200 p-4 rounded-xl space-y-2">
-                  <label className="text-xs font-bold text-indigo-900 block">🎓 Grado Escolar</label>
-                  <input type="text" placeholder="Ej. Cuarto A" value={gradoEscolar} onChange={(e) => setGradoEscolar(e.target.value)} className="w-full bg-white p-2.5 rounded-lg border border-indigo-200 text-sm" required />
-                </div>
-              )}
 
               {esMenorDeEdad(edad) && (
                 <div className="bg-amber-50/70 border border-amber-200 p-4 rounded-xl space-y-3">
@@ -1092,7 +1091,6 @@ export default function Home() {
               Tu solicitud ha sido guardada con éxito y se encuentra pendiente de aprobación por el administrador.
             </p>
 
-            {/* ADVERTENCIA DE CREDENCIALES */}
             <div className="bg-amber-50 border border-amber-200/80 p-3.5 rounded-2xl text-left space-y-1.5">
               <div className="flex items-center gap-1.5 text-amber-900 font-bold text-xs">
                 <span>🔑</span>
@@ -1132,6 +1130,9 @@ export default function Home() {
                 <input type="number" placeholder="Edad" value={edadNewAdmin} onChange={(e) => setEdadNewAdmin(e.target.value)} className={inputStyle} />
                 <input type="tel" placeholder="Celular" value={celularNewAdmin} onChange={(e) => setCelularNewAdmin(e.target.value)} className={inputStyle} />
               </div>
+              {procesoActivo === 'Proyecto de Música Escolar' && (
+                <input type="text" placeholder="Grado Escolar (ej. Cuarto A)" value={gradoNewAdmin} onChange={(e) => setGradoNewAdmin(e.target.value)} className={inputStyle} required />
+              )}
               <input type="text" placeholder="Instrumento" value={instrumentoNewAdmin} onChange={(e) => setInstrumentoNewAdmin(e.target.value)} className={inputStyle} required />
               <select value={origenNewAdmin} onChange={(e) => setOrigenNewAdmin(e.target.value)} className={inputStyle}>
                 <option value="Prestado (CODART)">Prestado (CODART)</option>
