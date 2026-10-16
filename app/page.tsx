@@ -434,7 +434,7 @@ export default function Home() {
   };
 
   // ELIMINAR O RECHAZAR UNA SOLICITUD/PROCESO DE FORMA INDEPENDIENTE
-  const eliminarProcesoIntegrante = async (idProceso: string, docCompleto?: string) => {
+  const eliminarProcesoIntegrante = async (idProceso: string) => {
     if (!sesionAdmin) return;
 
     const confirmar = window.confirm('¿Deseas retirar este registro?');
@@ -442,9 +442,6 @@ export default function Home() {
     
     if (idProceso) {
       await supabase.from('integrante_procesos').delete().eq('id', String(idProceso).trim());
-    }
-    if (docCompleto) {
-      await supabase.from('integrantes').delete().eq('documento', docCompleto);
     }
 
     cargarDatos();
@@ -576,10 +573,7 @@ export default function Home() {
     return p.estado_registro.trim().toLowerCase() === 'pendiente';
   });
 
-  // CRUCE FLEXIBLE DE INTEGRANTES
-  const integrantesFiltrados = procesosEnProcesoActivo(); // se define abajo por claridad
-
-  // Lógica de filtrado de integrantes activos
+  // FILTRAR INTEGRANTES ACTIVOS EN EL PROCESO ACTIVO
   const procesosEnProcesoActivo = procesosIntegrantes.filter(p => {
     if (!p.proceso || !p.estado_registro) return false;
     return (
