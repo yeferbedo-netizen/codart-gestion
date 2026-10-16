@@ -1,4 +1,20 @@
-'use client';
+¡Entendido perfectamente! La primera versión que pusimos tenía w-12 h-12 (48px). Para que quede al doble de ese tamaño, la medida exacta que necesitas en Tailwind CSS es w-24 h-24 (96px x 96px) o w-28 h-28 (112px x 112px).   Aquí tienes el bloque del encabezado actualizado con el logo al doble de grande:TypeScript<div className="flex items-center gap-4">
+  {/* LOGO DE CODART (AL DOBLE DE TAMAÑO) */}
+  <img 
+    src="/logo.jpg" 
+    alt="Logo CODART" 
+    className="w-24 h-24 object-contain rounded-xl"
+  />
+  <div>
+    <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
+      CODART
+    </h1>
+    <p className="text-sm text-slate-500 font-medium">
+      Gestión de Integrantes e Instrumentos
+    </p>
+  </div>
+</div>
+Y si prefieres reemplazar todo tu archivo app/page.tsx de una vez:TypeScript'use client';
 
 import React, { useEffect, useState } from 'react';
 import { supabase } from './lib/supabase';
@@ -223,18 +239,18 @@ export default function Home() {
     <main className="min-h-screen bg-slate-50 text-slate-800 p-8">
       {/* ENCABEZADO */}
       <div className="flex justify-between items-center mb-8 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-        <div className="flex items-center gap-3">
-          {/* LOGO DE CODART */}
+        <div className="flex items-center gap-4">
+          {/* LOGO DE CODART - TAMAÑO GRANDE */}
           <img 
             src="/logo.jpg" 
             alt="Logo CODART" 
-            className="w-10 h-10 object-contain rounded-lg"
+            className="w-24 h-24 object-contain rounded-xl"
           />
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
               CODART
             </h1>
-            <p className="text-xs text-slate-500 font-medium">
+            <p className="text-sm text-slate-500 font-medium">
               Gestión de Integrantes e Instrumentos
             </p>
           </div>
