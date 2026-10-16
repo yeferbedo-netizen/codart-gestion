@@ -30,7 +30,7 @@ export default function Home() {
   const [acudienteDocNewAdmin, setAcudienteDocNewAdmin] = useState('');
   const [acudienteCelNewAdmin, setAcudienteCelNewAdmin] = useState('');
 
-  // EDITAR INTEGRANTE (ADMIN)
+  // EDITAR INTEGRANTE / PROCESO (ADMIN - COMPLETO)
   const [mostrarModalEditarIntegrante, setMostrarModalEditarIntegrante] = useState(false);
   const [integranteEditando, setIntegranteEditando] = useState<any | null>(null);
   const [nombreEdit, setNombreEdit] = useState('');
@@ -39,6 +39,10 @@ export default function Home() {
   const [edadEdit, setEdadEdit] = useState<string>('');
   const [celularEdit, setCelularEdit] = useState('');
   const [gradoEscolarEdit, setGradoEscolarEdit] = useState('');
+  const [procesoEdit, setProcesoEdit] = useState('');
+  const [instrumentoEdit, setInstrumentoEdit] = useState('');
+  const [origenInstrumentoEdit, setOrigenInstrumentoEdit] = useState('Prestado (CODART)');
+  const [marcaSerieEdit, setMarcaSerieEdit] = useState('');
   const [nombreAcudienteEdit, setNombreAcudienteEdit] = useState('');
   const [documentoAcudienteEdit, setDocumentoAcudienteEdit] = useState('');
   const [celularAcudienteEdit, setCelularAcudienteEdit] = useState('');
@@ -66,7 +70,6 @@ export default function Home() {
   const [instrumento, setInstrumento] = useState('');
   const [origenInstrumento, setOrigenInstrumento] = useState('Prestado (CODART)');
   const [marcaSerie, setMarcaSerie] = useState('');
-  const [estadoInstrumento, setEstadoInstrumento] = useState('Excelente');
   const [nombreAcudiente, setNombreAcudiente] = useState('');
   const [documentoAcudiente, setDocumentoAcudiente] = useState('');
   const [celularAcudiente, setCelularAcudiente] = useState('');
@@ -201,7 +204,6 @@ export default function Home() {
       return;
     }
 
-    // Verificar si tiene al menos un proceso aprobado
     const procesosDelEstudiante = procesosIntegrantes.filter(p => p.documento === docLimpio);
     const tieneAprobado = procesosDelEstudiante.some(p => p.estado_registro === 'Aprobado');
 
@@ -246,7 +248,6 @@ export default function Home() {
     const numEdad = edad ? parseInt(edad, 10) : null;
     const docLimpio = documento.trim();
 
-    // 1. Guardar o actualizar datos personales en la tabla única de integrantes
     await supabase.from('integrantes').upsert([
       {
         nombre: nombre.trim(),
@@ -261,7 +262,6 @@ export default function Home() {
       }
     ], { onConflict: 'documento' });
 
-    // 2. Registrar el proceso e instrumento específico en la tabla auxiliar
     const { error: errorProc } = await supabase.from('integrante_procesos').insert([
       {
         documento: docLimpio,
@@ -368,7 +368,61 @@ export default function Home() {
     alert(`¡Inscrito y aprobado con éxito en ${procesoActivo}!`);
   };
 
-  // ELIMINAR PROCESO O INTEGRANTE COMPLETO
+  // ABRIR MODAL EDITAR INTEGRANTE
+  const abrirModalEditarIntegrante = (item: any) => {
+    setIntegranteEditando(item);
+    setNombreEdit(item.nombre || '');
+    setTipoDocumentoEdit(item.tipo_documento || 'C.C.');
+    setDocumentoEdit(item.documento || '');
+    setEdadEdit(item.edad ? String(item.edad) : '');
+    setCelularEdit(item.celular || '');
+    setGradoEscolarEdit(item.grado_escolar || '');
+    setProcesoEdit(item.proceso || 'Banda Filarmónica');
+    setInstrumentoEdit(item.instrumento || '');
+    setOrigenInstrumentoEdit(item.origen_instrumento || 'Prestado (CODART)');
+    setMarcaSerieEdit(item.marca_serie || '');
+    setNombreAcudienteEdit(item.nombre_acudiente || '');
+    setDocumentoAcudienteEdit(item.documento_acudiente || '');
+    setCelularAcudienteEdit(item.celular_acudiente || '');
+    setMostrarModalEditarIntegrante(true);
+  };
+
+  // GUARDAR EDICIÓN INTEGRANTE
+  const guardarEdicionIntegrante = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!sesionAdmin || !integranteEditando) return;
+
+    const numEdad = edadEdit ? parseInt(edadEdit, 10) : null;
+    const docLimpio = documentoEdit.trim();
+
+    // Actualizar datos personales compartidos
+    await supabase.from('integrantes').update({
+      nombre: nombreEdit.trim(),
+      tipo_documento: tipoDocumentoEdit,
+      documento: docLimpio,
+      edad: numEdad,
+      celular: celularEdit.trim(),
+      grado_escolar: procesoEdit === 'Proyecto de Música Escolar' ? gradoEscolarEdit.trim() : null,
+      nombre_acudiente: nombreAcudienteEdit.trim() || null,
+      documento_acudiente: documentoAcudienteEdit.trim() || null,
+      celular_acudiente: celularAcudienteEdit.trim() || null,
+    }).eq('documento', integranteEditando.documento);
+
+    // Actualizar proceso / instrumento específico
+    await supabase.from('integrante_procesos').update({
+      proceso: procesoEdit,
+      instrumento: instrumentoEdit.trim(),
+      origen_instrumento: origenInstrumentoEdit,
+      marca_serie: marcaSerieEdit.trim() || 'No especificada',
+    }).eq('id', integranteEditando.idProceso);
+
+    setMostrarModalEditarIntegrante(false);
+    setIntegranteEditando(null);
+    cargarDatos();
+    alert('¡Información actualizada con éxito!');
+  };
+
+  // ELIMINAR PROCESO
   const eliminarProcesoIntegrante = async (idProceso: string) => {
     if (!sesionAdmin) return;
     const confirmar = window.confirm('¿Deseas retirar a este integrante de este proceso?');
@@ -595,7 +649,7 @@ export default function Home() {
           <div className="bg-white border border-slate-200 p-6 md:p-8 rounded-3xl w-full max-w-lg relative shadow-2xl my-8">
             <button onClick={() => setMostrarModalInscripcion(false)} className="absolute top-4 right-4 text-slate-400 font-bold">✕</button>
             <h2 className="text-2xl font-bold text-slate-900 mb-1">Formulario de Inscripción</h2>
-            <p className="text-xs text-slate-500 mb-6">Inscríbete en tus procesos o añade un nuevo instrumento si ya estás registrado.</p>
+            <p className="text-xs text-slate-500 mb-6">Inscríbete en tus procesos o añade un nuevo instrumento.</p>
 
             <form onSubmit={handleSubmitInscripcion} className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
               <div>
@@ -685,6 +739,64 @@ export default function Home() {
         </div>
       )}
 
+      {/* MODAL EDITAR INTEGRANTE (ADMIN) */}
+      {mostrarModalEditarIntegrante && integranteEditando && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white border border-slate-200 p-6 md:p-8 rounded-3xl w-full max-w-lg relative shadow-2xl my-8">
+            <button onClick={() => setMostrarModalEditarIntegrante(false)} className="absolute top-4 right-4 text-slate-400 font-bold">✕</button>
+            <h2 className="text-2xl font-bold text-slate-900 mb-1">✏️ Editar Datos del Músico</h2>
+            <p className="text-xs text-slate-500 mb-4">Actualiza la información personal, instrumento y proceso.</p>
+
+            <form onSubmit={guardarEdicionIntegrante} className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+              <div>
+                <label className="text-xs font-bold text-slate-700 mb-1 block">Proceso o Agrupación</label>
+                <select value={procesoEdit} onChange={(e) => setProcesoEdit(e.target.value)} className={inputStyle}>
+                  <option value="Banda Filarmónica">Banda Filarmónica</option>
+                  <option value="Banda de Marcha">Banda de Marcha</option>
+                  <option value="Prebanda">Prebanda</option>
+                  <option value="Proyecto de Música Escolar">Proyecto de Música Escolar</option>
+                </select>
+              </div>
+
+              <input type="text" placeholder="Nombre completo" value={nombreEdit} onChange={(e) => setNombreEdit(e.target.value)} className={inputStyle} required />
+
+              <div className="grid grid-cols-3 gap-2">
+                <select value={tipoDocumentoEdit} onChange={(e) => setTipoDocumentoEdit(e.target.value)} className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-slate-800 font-semibold text-xs">
+                  <option value="C.C.">C.C.</option><option value="T.I.">T.I.</option><option value="R.C.">R.C.</option><option value="C.E.">C.E.</option>
+                </select>
+                <input type="text" placeholder="Número documento" value={documentoEdit} onChange={(e) => setDocumentoEdit(e.target.value)} className="col-span-2 bg-slate-50 p-3 rounded-xl border border-slate-200 text-slate-800 text-sm" required />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <input type="number" placeholder="Edad" min="1" max="100" value={edadEdit} onChange={(e) => setEdadEdit(e.target.value)} className={inputStyle} />
+                <input type="tel" placeholder="Celular" value={celularEdit} onChange={(e) => setCelularEdit(e.target.value)} className={inputStyle} />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <input type="text" placeholder="Instrumento" value={instrumentoEdit} onChange={(e) => setInstrumentoEdit(e.target.value)} className={inputStyle} required />
+                <select value={origenInstrumentoEdit} onChange={(e) => setOrigenInstrumentoEdit(e.target.value)} className={inputStyle}>
+                  <option value="Prestado (CODART)">🎵 Prestado (CODART)</option>
+                  <option value="Propio">⭐ Instrumento Propio</option>
+                </select>
+              </div>
+
+              <input type="text" placeholder="Marca y Serie" value={marcaSerieEdit} onChange={(e) => setMarcaSerieEdit(e.target.value)} className={inputStyle} />
+
+              <div className="bg-amber-50/70 border border-amber-200 p-4 rounded-xl space-y-3">
+                <span className="text-xs font-bold text-amber-800 block">👨‍👩‍👧 Datos del Acudiente (Opcional)</span>
+                <input type="text" placeholder="Nombre acudiente" value={nombreAcudienteEdit} onChange={(e) => setNombreAcudienteEdit(e.target.value)} className="w-full bg-white p-2.5 rounded-lg border border-amber-200 text-xs" />
+                <div className="grid grid-cols-2 gap-2">
+                  <input type="text" placeholder="Cédula acudiente" value={documentoAcudienteEdit} onChange={(e) => setDocumentoAcudienteEdit(e.target.value)} className="w-full bg-white p-2.5 rounded-lg border border-amber-200 text-xs" />
+                  <input type="tel" placeholder="Celular acudiente" value={celularAcudienteEdit} onChange={(e) => setCelularAcudienteEdit(e.target.value)} className="w-full bg-white p-2.5 rounded-lg border border-amber-200 text-xs" />
+                </div>
+              </div>
+
+              <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold text-sm transition cursor-pointer">Guardar Cambios</button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* MODAL ÉXITO INSCRIPCIÓN */}
       {registroExitoso && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
@@ -715,6 +827,22 @@ export default function Home() {
               <input type="text" placeholder="Compositor" value={compositorCarpeta} onChange={(e) => setCompositorCarpeta(e.target.value)} className={inputStyle} />
               <input type="url" placeholder="Enlace de Audio" value={linkAudioCarpeta} onChange={(e) => setLinkAudioCarpeta(e.target.value)} className={inputStyle} />
               <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl text-sm cursor-pointer">Crear Carpeta</button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL EDITAR CARPETA */}
+      {mostrarModalEditarCarpeta && carpetaEditando && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-md relative shadow-2xl">
+            <button onClick={() => setMostrarModalEditarCarpeta(false)} className="absolute top-4 right-4 text-slate-400 font-bold">✕</button>
+            <h2 className="text-xl font-bold text-slate-900 mb-1">✏️ Editar Carpeta</h2>
+            <form onSubmit={guardarEdicionCarpeta} className="space-y-3">
+              <input type="text" value={tituloCarpetaEdit} onChange={(e) => setTituloCarpetaEdit(e.target.value)} className={inputStyle} required />
+              <input type="text" value={compositorCarpetaEdit} onChange={(e) => setCompositorCarpetaEdit(e.target.value)} className={inputStyle} />
+              <input type="url" value={linkAudioCarpetaEdit} onChange={(e) => setLinkAudioCarpetaEdit(e.target.value)} className={inputStyle} />
+              <button type="submit" className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl text-sm cursor-pointer">Guardar Cambios</button>
             </form>
           </div>
         </div>
@@ -777,7 +905,15 @@ export default function Home() {
                     {obrasFiltradas.map((obra) => (
                       <div key={obra.id} onClick={() => setObraSeleccionadaDrive(obra)} className="bg-white border border-slate-200 p-5 rounded-2xl cursor-pointer flex flex-col justify-between group">
                         <div>
-                          <div className="flex justify-between items-start mb-3"><span className="text-3xl">📁</span></div>
+                          <div className="flex justify-between items-start mb-3">
+                            <span className="text-3xl">📁</span>
+                            {sesionAdmin && (
+                              <div className="flex items-center gap-1">
+                                <button onClick={(e) => { e.stopPropagation(); abrirModalEditarCarpeta(obra); }} className="text-slate-400 hover:text-blue-600 font-bold p-1">✏️</button>
+                                <button onClick={(e) => { e.stopPropagation(); eliminarCarpetaObra(obra.id); }} className="text-slate-400 hover:text-rose-600 font-bold p-1">🗑️</button>
+                              </div>
+                            )}
+                          </div>
                           <h3 className="font-bold text-slate-900 text-sm group-hover:text-blue-600 truncate">{obra.titulo}</h3>
                           <p className="text-[11px] text-slate-500 truncate mt-0.5">{obra.compositor_arreglista || 'Sin compositor'}</p>
                         </div>
@@ -812,10 +948,10 @@ export default function Home() {
                   {pendientesList.map((sol) => {
                     const persona = integrantes.find(i => i.documento === sol.documento);
                     return (
-                      <div key={sol.id} className="bg-amber-50/50 border border-amber-200 rounded-2xl p-4 flex justify-between items-center">
+                      <div key={sol.id} className="bg-amber-50/50 border border-amber-200 rounded-2xl p-4 flex justify-between items-center flex-wrap gap-2">
                         <div>
                           <h3 className="font-bold text-slate-900">{persona?.nombre || sol.documento}</h3>
-                          <p className="text-xs text-slate-600">Proceso: <strong>{sol.proceso}</strong> | Instrumento: <strong className="text-blue-700">{sol.instrumento}</strong></p>
+                          <p className="text-xs text-slate-600">Doc: {sol.documento} | Proceso: <strong>{sol.proceso}</strong> | Instrumento: <strong className="text-blue-700">{sol.instrumento}</strong></p>
                         </div>
                         <div className="flex gap-2">
                           <button onClick={() => aprobarSolicitud(sol.id)} className="bg-emerald-600 text-white text-xs font-bold px-4 py-2 rounded-xl cursor-pointer">✓ Aprobar</button>
@@ -838,13 +974,23 @@ export default function Home() {
 
               <div className="space-y-3">
                 {integrantesFiltrados.map((item) => (
-                  <div key={item.idProceso} className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex justify-between items-center">
-                    <div>
-                      <h3 className="font-bold text-slate-900">{item.nombre}</h3>
+                  <div key={item.idProceso} className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex justify-between items-center flex-wrap gap-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-bold text-slate-900 text-base">{item.nombre}</h3>
+                        <span className="text-[11px] bg-slate-200 px-2 py-0.5 rounded-full font-semibold">{item.tipo_documento} {item.documento}</span>
+                        {item.edad && <span className="text-[11px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-semibold">{item.edad} años</span>}
+                      </div>
                       <p className="text-xs text-slate-600">Instrumento: <strong className="text-blue-700">{item.instrumento}</strong> ({item.origen_instrumento})</p>
+                      {item.celular && <p className="text-xs text-slate-500">Cel: {item.celular}</p>}
+                      {item.nombre_acudiente && <p className="text-[11px] text-amber-900 bg-amber-50 px-2 py-0.5 rounded-md inline-block">Acudiente: {item.nombre_acudiente} ({item.celular_acudiente || 'Sin tel'})</p>}
                     </div>
+
                     {sesionAdmin && (
-                      <button onClick={() => eliminarProcesoIntegrante(item.idProceso)} className="bg-rose-50 text-rose-600 text-xs font-bold px-3 py-2 rounded-xl cursor-pointer">🗑️ Retirar del Proceso</button>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => abrirModalEditarIntegrante(item)} className="bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold px-3.5 py-2 rounded-xl cursor-pointer">✏️ Editar</button>
+                        <button onClick={() => eliminarProcesoIntegrante(item.idProceso)} className="bg-rose-50 text-rose-600 text-xs font-bold px-3 py-2 rounded-xl cursor-pointer">🗑️ Retirar</button>
+                      </div>
                     )}
                   </div>
                 ))}
