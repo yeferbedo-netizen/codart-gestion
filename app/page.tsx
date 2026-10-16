@@ -1,4 +1,3 @@
-TypeScript
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -24,6 +23,7 @@ export default function Home() {
   const [documento, setDocumento] = useState('');
   const [edad, setEdad] = useState<string>('');
   const [celular, setCelular] = useState('');
+  const [gradoEscolar, setGradoEscolar] = useState('');
   const [instrumento, setInstrumento] = useState('');
   const [origenInstrumento, setOrigenInstrumento] = useState('Prestado (CODART)');
   const [marcaSerie, setMarcaSerie] = useState('');
@@ -41,6 +41,7 @@ export default function Home() {
   const [editDocumento, setEditDocumento] = useState('');
   const [editEdad, setEditEdad] = useState<string>('');
   const [editCelular, setEditCelular] = useState('');
+  const [editGradoEscolar, setEditGradoEscolar] = useState('');
   const [editInstrumento, setEditInstrumento] = useState('');
   const [editOrigenInstrumento, setEditOrigenInstrumento] = useState('Prestado (CODART)');
   const [editMarcaSerie, setEditMarcaSerie] = useState('');
@@ -142,6 +143,7 @@ export default function Home() {
           documento: documento.trim(),
           edad: numEdad,
           celular: celular.trim(),
+          grado_escolar: procesoActivo === 'Proyecto de Música Escolar' ? gradoEscolar.trim() : null,
           proceso: procesoActivo,
           instrumento: instrumento.trim(),
           origen_instrumento: origenInstrumento,
@@ -166,6 +168,7 @@ export default function Home() {
       setDocumento('');
       setEdad('');
       setCelular('');
+      setGradoEscolar('');
       setInstrumento('');
       setOrigenInstrumento('Prestado (CODART)');
       setMarcaSerie('');
@@ -183,6 +186,7 @@ export default function Home() {
     setEditDocumento(integrante.documento || '');
     setEditEdad(integrante.edad !== null && integrante.edad !== undefined ? String(integrante.edad) : '');
     setEditCelular(integrante.celular || '');
+    setEditGradoEscolar(integrante.grado_escolar || '');
     setEditInstrumento(integrante.instrumento || '');
     setEditOrigenInstrumento(integrante.origen_instrumento || 'Prestado (CODART)');
     setEditMarcaSerie(integrante.marca_serie || '');
@@ -204,6 +208,7 @@ export default function Home() {
         documento: editDocumento.trim(),
         edad: numEdad,
         celular: editCelular.trim(),
+        grado_escolar: procesoActivo === 'Proyecto de Música Escolar' ? editGradoEscolar.trim() : null,
         instrumento: editInstrumento.trim(),
         origen_instrumento: editOrigenInstrumento,
         marca_serie: editMarcaSerie.trim(),
@@ -253,6 +258,7 @@ export default function Home() {
       (integrante.documento && integrante.documento.toLowerCase().includes(termino)) ||
       (integrante.instrumento && integrante.instrumento.toLowerCase().includes(termino)) ||
       (integrante.celular && integrante.celular.toLowerCase().includes(termino)) ||
+      (integrante.grado_escolar && integrante.grado_escolar.toLowerCase().includes(termino)) ||
       (integrante.marca_serie && integrante.marca_serie.toLowerCase().includes(termino)) ||
       (integrante.nombre_acudiente && integrante.nombre_acudiente.toLowerCase().includes(termino)) ||
       (integrante.documento_acudiente && integrante.documento_acudiente.toLowerCase().includes(termino));
@@ -466,6 +472,23 @@ export default function Home() {
               />
             </div>
 
+            {/* CAMPO GRADO ESCOLAR (SOLO PARA PROYECTO DE MÚSICA ESCOLAR) */}
+            {procesoActivo === 'Proyecto de Música Escolar' && (
+              <div className="bg-indigo-50/70 border border-indigo-200 p-4 rounded-xl space-y-2">
+                <label className="text-xs font-bold text-indigo-900 flex items-center gap-1">
+                  🎓 Grado Escolar (ej. Cuarto A, Quinto B...)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ingrese el grado y grupo"
+                  value={gradoEscolar}
+                  onChange={(e) => setGradoEscolar(e.target.value)}
+                  className="w-full bg-white p-2.5 rounded-lg border border-indigo-200 text-slate-800 text-sm outline-none focus:border-indigo-500"
+                  required={procesoActivo === 'Proyecto de Música Escolar'}
+                />
+              </div>
+            )}
+
             {/* SECCIÓN DESPLEGABLE ACUDIENTE SI ES MENOR DE EDAD */}
             {esMenorDeEdad(edad) && (
               <div className="bg-amber-50/70 border border-amber-200 p-4 rounded-xl space-y-3 animate-fade-in">
@@ -664,6 +687,17 @@ export default function Home() {
                         />
                       </div>
 
+                      {/* EDICIÓN DE GRADO ESCOLAR */}
+                      {procesoActivo === 'Proyecto de Música Escolar' && (
+                        <input
+                          type="text"
+                          value={editGradoEscolar}
+                          onChange={(e) => setEditGradoEscolar(e.target.value)}
+                          className={editInputStyle}
+                          placeholder="Grado escolar (ej. Cuarto A)"
+                        />
+                      )}
+
                       {/* EDICIÓN DE ACUDIENTE SI ES MENOR DE EDAD */}
                       {esMenorDeEdad(editEdad) && (
                         <div className="bg-amber-50 p-3 rounded-lg border border-amber-200 space-y-2 my-2">
@@ -766,6 +800,13 @@ export default function Home() {
                             </span>
                           )}
                         </div>
+
+                        {/* ETIQUETA DE GRADO ESCOLAR (SI APLICA) */}
+                        {integrante.proceso === 'Proyecto de Música Escolar' && integrante.grado_escolar && (
+                          <p className="text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md inline-block border border-indigo-200">
+                            🎓 Grado: {integrante.grado_escolar}
+                          </p>
+                        )}
 
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-sm text-blue-600 font-semibold">
