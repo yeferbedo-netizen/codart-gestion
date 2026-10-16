@@ -544,6 +544,18 @@ export default function Home() {
     cargarPartituras();
   };
 
+  // FUNCIÓN AUXILIAR PARA OBTENER LINK DE WHATSAPP
+  const obtenerLinkWhatsApp = (numCelular: string, nombrePersona: string) => {
+    if (!numCelular) return null;
+    const numLimpio = numCelular.replace(/\D/g, '');
+    if (!numLimpio) return null;
+    
+    // Si el número no incluye código de país de Colombia (57), se lo anteponemos
+    const numFinal = numLimpio.length === 10 ? `57${numLimpio}` : numLimpio;
+    const mensaje = encodeURIComponent(`Hola ${nombrePersona}, te contactamos desde la gestión de CODART.`);
+    return `https://wa.me/${numFinal}?text=${mensaje}`;
+  };
+
   // FILTRAR INTEGRANTES CON COINCIDENCIA FLEXIBLE DE PROCESOS
   const procesosEnProcesoActivo = procesosIntegrantes.filter(p => {
     if (!p.proceso) return false;
@@ -808,7 +820,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* MODULO 2: GESTIÓN DE INTEGRANTES */}
+          {/* MODULO 2: GESTIÓN DE INTEGRANTES (DISEÑO COMPACTO Y NÚMERO CON LINK A WHATSAPP) */}
           {moduloActivo === 'integrantes' && (
             <div className="space-y-4">
               <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
@@ -829,54 +841,73 @@ export default function Home() {
                 )}
               </div>
 
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-x-auto">
-                <table className="w-full text-left text-xs md:text-sm border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider">
-                      <th className="p-4">Nombre</th>
-                      <th className="p-4">Documento</th>
-                      <th className="p-4">Instrumento</th>
-                      <th className="p-4">Origen Instrumento</th>
-                      <th className="p-4">Marca / Serie</th>
-                      {sesionAdmin && <th className="p-4 text-right">Acciones</th>}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {integrantesFiltrados.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="p-8 text-center text-slate-400">
-                          No hay integrantes activos en {procesoActivo}.
-                        </td>
-                      </tr>
-                    ) : (
-                      integrantesFiltrados.map((item) => (
-                        <tr key={item.idProceso} className="hover:bg-slate-50/80 transition">
-                          <td className="p-4 font-bold text-slate-900">{item.nombre || 'Sin nombre'}</td>
-                          <td className="p-4 font-mono text-slate-600">{item.tipo_documento} {item.documento}</td>
-                          <td className="p-4 font-medium text-indigo-600">{item.instrumento}</td>
-                          <td className="p-4 text-slate-600">{item.origen_instrumento}</td>
-                          <td className="p-4 text-slate-500">{item.marca_serie}</td>
-                          {sesionAdmin && (
-                            <td className="p-4 text-right space-x-2">
-                              <button
-                                onClick={() => abrirModalEditarIntegrante(item)}
-                                className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2.5 py-1.5 rounded-lg text-xs transition cursor-pointer"
+              {/* VISTA COMPACTA TIPO TARJETAS / FILAS VERSÁTILES */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {integrantesFiltrados.length === 0 ? (
+                  <div className="col-span-full bg-white p-8 text-center text-slate-400 rounded-2xl border border-slate-200 text-xs">
+                    No hay integrantes activos en {procesoActivo}.
+                  </div>
+                ) : (
+                  integrantesFiltrados.map((item) => {
+                    const wsUrl = obtenerLinkWhatsApp(item.celular || item.celular_acudiente, item.nombre || 'estudiante');
+                    return (
+                      <div
+                        key={item.idProceso}
+                        className="bg-white p-3.5 rounded-2xl border border-slate-200 hover:border-slate-300 shadow-2xs flex justify-between items-start transition space-y-1"
+                      >
+                        <div className="space-y-1.5">
+                          <div>
+                            <h4 className="font-bold text-slate-900 text-sm leading-tight">{item.nombre || 'Sin nombre'}</h4>
+                            <p className="text-[11px] font-semibold text-indigo-600">{item.instrumento} • <span className="text-slate-400 font-normal">{item.origen_instrumento}</span></p>
+                          </div>
+
+                          {/* BOTÓN O NUMERO DE REGISTRO LINK A WHATSAPP */}
+                          <div className="pt-0.5">
+                            {wsUrl ? (
+                              <a
+                                href={wsUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title="Tocar para chatear por WhatsApp"
+                                className="inline-flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 text-emerald-800 text-[11px] font-mono font-bold px-2.5 py-1 rounded-lg transition cursor-pointer"
                               >
-                                ✏️ Editar
-                              </button>
-                              <button
-                                onClick={() => eliminarProcesoIntegrante(item.idProceso)}
-                                className="bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold px-2.5 py-1.5 rounded-lg text-xs transition cursor-pointer"
-                              >
-                                🗑️
-                              </button>
-                            </td>
+                                <span>💬</span>
+                                <span>{item.tipo_documento} {item.documento}</span>
+                              </a>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 bg-slate-50 border border-slate-200 text-slate-600 text-[11px] font-mono px-2 py-0.5 rounded-lg">
+                                🆔 {item.tipo_documento} {item.documento}
+                              </span>
+                            )}
+                          </div>
+
+                          {item.marca_serie && item.marca_serie !== 'No especificada' && (
+                            <p className="text-[10px] text-slate-400">Marca/Serie: {item.marca_serie}</p>
                           )}
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                        </div>
+
+                        {sesionAdmin && (
+                          <div className="flex items-center gap-1 pl-2">
+                            <button
+                              onClick={() => abrirModalEditarIntegrante(item)}
+                              className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg text-xs hover:bg-slate-50 transition cursor-pointer"
+                              title="Editar"
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              onClick={() => eliminarProcesoIntegrante(item.idProceso)}
+                              className="text-rose-400 hover:text-rose-700 p-1.5 rounded-lg text-xs hover:bg-rose-50 transition cursor-pointer"
+                              title="Eliminar"
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
           )}
@@ -1108,7 +1139,7 @@ export default function Home() {
               <input type="text" placeholder="Nombre" value={nombreEdit} onChange={(e) => setNombreEdit(e.target.value)} className={inputStyle} required />
               <div className="grid grid-cols-3 gap-2">
                 <select value={tipoDocumentoEdit} onChange={(e) => setTipoDocumentoEdit(e.target.value)} className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs font-bold">
-                  <option value="C.C.">C.C.</option><option value="T.I.">T.I.</option><option value="R.C.">R.C.</option><option value="C.E.">C.E.</option>
+                  <option value="C.C.">C.C.</option><option value="T.I.">T.I.</option><option value="R.C.">R.C me.</option><option value="C.E.">C.E.</option>
                 </select>
                 <input type="text" placeholder="Documento" value={documentoEdit} onChange={(e) => setDocumentoEdit(e.target.value)} className="col-span-2 bg-slate-50 p-3 rounded-xl border border-slate-200 text-sm" required />
               </div>
