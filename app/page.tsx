@@ -95,7 +95,6 @@ export default function Home() {
   const [mostrarModalSubirArchivos, setMostrarModalSubirArchivos] = useState(false);
   const [archivosSeleccionados, setArchivosSeleccionados] = useState<File[]>([]);
   const [subiendoArchivos, setSubiendoArchivos] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     cargarDatos();
@@ -128,15 +127,18 @@ export default function Home() {
   };
 
   const cargarDatos = async () => {
-    const { data: dataInt } = await supabase
+    const { data: dataInt, error: errInt } = await supabase
       .from('integrantes')
       .select('*')
       .order('created_at', { ascending: false });
 
-    const { data: dataProc } = await supabase
+    const { data: dataProc, error: errProc } = await supabase
       .from('integrante_procesos')
       .select('*')
       .order('created_at', { ascending: false });
+
+    if (errInt) console.error('Error cargando integrantes:', errInt);
+    if (errProc) console.error('Error cargando procesos:', errProc);
 
     if (dataInt) setIntegrantes(dataInt);
     if (dataProc) setProcesosIntegrantes(dataProc);
@@ -533,12 +535,16 @@ export default function Home() {
     cargarPartituras();
   };
 
-  // FILTRAR INTEGRANTES
-  const procesosEnProcesoActivo = procesosIntegrantes.filter(p => p.proceso === procesoActivo && p.estado_registro === 'Aprobado');
+  // FILTRAR INTEGRANTES CON COINCIDENCIA FLEXIBLE DE PROCESOS
+  const procesosEnProcesoActivo = procesosIntegrantes.filter(p => {
+    if (!p.proceso) return false;
+    return p.proceso.trim().toLowerCase() === procesoActivo.trim().toLowerCase() && p.estado_registro === 'Aprobado';
+  });
+
   const pendientesList = procesosIntegrantes.filter(p => p.estado_registro === 'Pendiente');
 
   const integrantesFiltrados = procesosEnProcesoActivo.map(proc => {
-    const infoPersonal = integrantes.find(i => i.documento === proc.documento);
+    const infoPersonal = integrantes.find(i => i.documento && proc.documento && i.documento.toString().trim() === proc.documento.toString().trim());
     return { ...infoPersonal, ...proc, idProceso: proc.id };
   }).filter(item => {
     const termino = busqueda.toLowerCase().trim();
@@ -551,7 +557,7 @@ export default function Home() {
   });
 
   const obrasFiltradas = obras.filter((o) => {
-    const coincideProceso = o.proceso === procesoActivo;
+    const coincideProceso = o.proceso && o.proceso.trim().toLowerCase() === procesoActivo.trim().toLowerCase();
     const termino = busquedaPartitura.toLowerCase().trim();
     if (!termino) return coincideProceso;
     return coincideProceso && ((o.titulo && o.titulo.toLowerCase().includes(termino)) || (o.compositor_arreglista && o.compositor_arreglista.toLowerCase().includes(termino)));
@@ -743,8 +749,6 @@ export default function Home() {
           <div className="bg-white border border-slate-200 p-6 md:p-8 rounded-3xl w-full max-w-lg relative shadow-2xl my-8">
             <button onClick={() => setMostrarModalEditarIntegrante(false)} className="absolute top-4 right-4 text-slate-400 font-bold">✕</button>
             <h2 className="text-2xl font-bold text-slate-900 mb-1">✏️ Editar Datos del Músico</h2>
-            <p className="text-xs text-slate-500 mb-4">Actualiza la información personal, instrumento y proceso.</p>
-
             <form onSubmit={guardarEdicionIntegrante} className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
               <div>
                 <label className="text-xs font-bold text-slate-700 mb-1 block">Proceso o Agrupación</label>
@@ -779,15 +783,6 @@ export default function Home() {
               </div>
 
               <input type="text" placeholder="Marca y Serie" value={marcaSerieEdit} onChange={(e) => setMarcaSerieEdit(e.target.value)} className={inputStyle} />
-
-              <div className="bg-amber-50/70 border border-amber-200 p-4 rounded-xl space-y-3">
-                <span className="text-xs font-bold text-amber-800 block">👨‍👩‍👧 Datos del Acudiente (Opcional)</span>
-                <input type="text" placeholder="Nombre acudiente" value={nombreAcudienteEdit} onChange={(e) => setNombreAcudienteEdit(e.target.value)} className="w-full bg-white p-2.5 rounded-lg border border-amber-200 text-xs" />
-                <div className="grid grid-cols-2 gap-2">
-                  <input type="text" placeholder="Cédula acudiente" value={documentoAcudienteEdit} onChange={(e) => setDocumentoAcudienteEdit(e.target.value)} className="w-full bg-white p-2.5 rounded-lg border border-amber-200 text-xs" />
-                  <input type="tel" placeholder="Celular acudiente" value={celularAcudienteEdit} onChange={(e) => setCelularAcudienteEdit(e.target.value)} className="w-full bg-white p-2.5 rounded-lg border border-amber-200 text-xs" />
-                </div>
-              </div>
 
               <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold text-sm transition cursor-pointer">Guardar Cambios</button>
             </form>
@@ -944,7 +939,7 @@ export default function Home() {
               ) : (
                 <div className="space-y-3">
                   {pendientesList.map((sol) => {
-                    const persona = integrantes.find(i => i.documento === sol.documento);
+                    const persona = integrantes.find(i => i.documento && sol.documento && i.documento.toString().trim() === sol.documento.toString().trim());
                     return (
                       <div key={sol.id} className="bg-amber-50/50 border border-amber-200 rounded-2xl p-4 flex justify-between items-center flex-wrap gap-2">
                         <div>
@@ -964,60 +959,70 @@ export default function Home() {
           ) : (
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
               <div className="flex justify-between items-center">
-                <h2 className="text-lg font-bold text-slate-900">Integrantes Oficiales ({integrantesFiltrados.length})</h2>
+                <h2 className="text-lg font-bold text-slate-900">Integrantes Oficiales ({integrantesFiltrados.length}) <span className="text-xs font-normal text-slate-500">— {procesoActivo}</span></h2>
                 {sesionAdmin && <button onClick={() => setMostrarModalNuevoIntegranteAdmin(true)} className="bg-emerald-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl cursor-pointer">➕ Registrar en este Proceso</button>}
               </div>
 
               {sesionAdmin && <input type="text" placeholder="Buscar integrante..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} className="w-full bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-sm outline-none" />}
 
+              {/* PANEL DE DIAGNÓSTICO RÁPIDO PARA EL ADMIN */}
+              <div className="bg-slate-100 p-3 rounded-xl text-xs text-slate-600 flex justify-between items-center">
+                <span>📊 Diagnóstico: Total registros en tabla procesos: <strong>{procesosIntegrantes.length}</strong> | Aprobados para este proceso: <strong>{procesosEnProcesoActivo.length}</strong></span>
+                <button onClick={cargarDatos} className="bg-white px-2.5 py-1 rounded-md border border-slate-300 font-bold text-slate-700">🔄 Recargar</button>
+              </div>
+
               <div className="space-y-3">
-                {integrantesFiltrados.map((item) => (
-                  <div key={item.idProceso} className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition hover:border-blue-300">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-bold text-slate-900 text-base">{item.nombre}</h3>
-                        <span className="text-[11px] bg-slate-200/70 text-slate-700 px-2.5 py-0.5 rounded-full font-semibold">
-                          {item.tipo_documento || 'C.C.'}
-                        </span>
+                {integrantesFiltrados.length === 0 ? (
+                  <div className="text-center py-12 text-slate-400">No hay integrantes aprobados en {procesoActivo}. Revisa la pestaña de Solicitudes Pendientes para aprobarlos.</div>
+                ) : (
+                  integrantesFiltrados.map((item) => (
+                    <div key={item.idProceso} className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition hover:border-blue-300">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-bold text-slate-900 text-base">{item.nombre || 'Sin nombre en integrantes'}</h3>
+                          <span className="text-[11px] bg-slate-200/70 text-slate-700 px-2.5 py-0.5 rounded-full font-semibold">
+                            {item.tipo_documento || 'C.C.'} {item.documento}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-3 flex-wrap text-xs text-slate-600 font-medium">
+                          <span className="text-blue-700 font-bold flex items-center gap-1">
+                            🎵 {item.instrumento}
+                          </span>
+                          <span className={`px-2.5 py-0.5 rounded-md text-[11px] font-bold ${
+                            item.origen_instrumento === 'Propio' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
+                          }`}>
+                            {item.origen_instrumento === 'Propio' ? '⭐ Instrumento Propio' : '🎵 Prestado (CODART)'}
+                          </span>
+                        </div>
+
+                        {item.celular && (
+                          <div className="pt-1">
+                            <a
+                              href={`https://wa.me/57${item.celular.replace(/\D/g, '')}?text=Hola%20${encodeURIComponent(item.nombre || '')},%20te%20escribimos%20desde%20CODART.`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-emerald-700 bg-emerald-50 hover:bg-emerald-100 font-bold px-2.5 py-1 rounded-lg transition border border-emerald-200"
+                            >
+                              <span>💬</span> WhatsApp: {item.celular}
+                            </a>
+                          </div>
+                        )}
                       </div>
 
-                      <div className="flex items-center gap-3 flex-wrap text-xs text-slate-600 font-medium">
-                        <span className="text-blue-700 font-bold flex items-center gap-1">
-                          🎵 {item.instrumento}
-                        </span>
-                        <span className={`px-2.5 py-0.5 rounded-md text-[11px] font-bold ${
-                          item.origen_instrumento === 'Propio' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
-                        }`}>
-                          {item.origen_instrumento === 'Propio' ? '⭐ Instrumento Propio' : '🎵 Prestado (CODART)'}
-                        </span>
-                      </div>
-
-                      {item.celular && (
-                        <div className="pt-1">
-                          <a
-                            href={`https://wa.me/57${item.celular.replace(/\D/g, '')}?text=Hola%20${encodeURIComponent(item.nombre)},%20te%20escribimos%20desde%20CODART.`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-xs text-emerald-700 bg-emerald-50 hover:bg-emerald-100 font-bold px-2.5 py-1 rounded-lg transition border border-emerald-200"
-                          >
-                            <span>💬</span> WhatsApp: {item.celular}
-                          </a>
+                      {sesionAdmin && (
+                        <div className="flex items-center gap-2 shrink-0 w-full md:w-auto justify-end pt-2 md:pt-0 border-t md:border-t-0 border-slate-200">
+                          <button onClick={() => abrirModalEditarIntegrante(item)} className="bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold px-3.5 py-2 rounded-xl transition cursor-pointer flex items-center gap-1">
+                            <span>✏️</span> Editar
+                          </button>
+                          <button onClick={() => eliminarProcesoIntegrante(item.idProceso)} className="bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold px-3 py-2 rounded-xl transition cursor-pointer" title="Retirar del proceso">
+                            🗑️
+                          </button>
                         </div>
                       )}
                     </div>
-
-                    {sesionAdmin && (
-                      <div className="flex items-center gap-2 shrink-0 w-full md:w-auto justify-end pt-2 md:pt-0 border-t md:border-t-0 border-slate-200">
-                        <button onClick={() => abrirModalEditarIntegrante(item)} className="bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold px-3.5 py-2 rounded-xl transition cursor-pointer flex items-center gap-1">
-                          <span>✏️</span> Editar
-                        </button>
-                        <button onClick={() => eliminarProcesoIntegrante(item.idProceso)} className="bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold px-3 py-2 rounded-xl transition cursor-pointer" title="Retirar del proceso">
-                          🗑️
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
           )}
