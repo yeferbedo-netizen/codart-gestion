@@ -4,23 +4,27 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from './lib/supabase';
 
 export default function Home() {
+  // NAVEGACIÓN DE MÓDULOS (Integrantes vs Partituras)
+  const [moduloActivo, setModuloActivo] = useState<'integrantes' | 'partituras'>('partituras');
+
+  // PROCESOS / AGRUPACIONES
   const [procesoActivo, setProcesoActivo] = useState('Banda Filarmónica');
+  
+  // INTEGRANTES Y SOLICITUDES
   const [integrantes, setIntegrantes] = useState<any[]>([]);
   const [cargando, setCargando] = useState(true);
-
-  // Estados para Modal de Inscripción y QR
   const [busqueda, setBusqueda] = useState('');
   const [mostrarModalInscripcion, setMostrarModalInscripcion] = useState(false);
   const [mostrarQR, setMostrarQR] = useState(false);
   const [registroExitoso, setRegistroExitoso] = useState(false);
 
-  // Autenticación de Administrador
+  // AUTH ADMIN
   const [sesion, setSesion] = useState<any>(null);
   const [mostrarModalAdmin, setMostrarModalAdmin] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  // Formulario de Registro
+  // FORMULARIO INTEGRANTE (INSCRIPCIÓN)
   const [procesoInscripcion, setProcesoInscripcion] = useState('Banda Filarmónica');
   const [nombre, setNombre] = useState('');
   const [tipoDocumento, setTipoDocumento] = useState('C.C.');
@@ -32,13 +36,11 @@ export default function Home() {
   const [origenInstrumento, setOrigenInstrumento] = useState('Prestado (CODART)');
   const [marcaSerie, setMarcaSerie] = useState('');
   const [estadoInstrumento, setEstadoInstrumento] = useState('Excelente');
-
-  // Datos Acudiente
   const [nombreAcudiente, setNombreAcudiente] = useState('');
   const [documentoAcudiente, setDocumentoAcudiente] = useState('');
   const [celularAcudiente, setCelularAcudiente] = useState('');
 
-  // ESTADOS PARA EDICIÓN (Exclusivo Admin)
+  // EDICIÓN INTEGRANTE
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [editNombre, setEditNombre] = useState('');
   const [editTipoDocumento, setEditTipoDocumento] = useState('C.C.');
@@ -54,6 +56,25 @@ export default function Home() {
   const [editDocumentoAcudiente, setEditDocumentoAcudiente] = useState('');
   const [editCelularAcudiente, setEditCelularAcudiente] = useState('');
 
+  // ESTADOS DEL REPOSITORIO DE PARTITURAS
+  const [obras, setObras] = useState<any[]>([]);
+  const [particelas, setParticelas] = useState<any[]>([]);
+  const [busquedaPartitura, setBusquedaPartitura] = useState('');
+  const [obraDesplegada, setObraDesplegada] = useState<string | null>(null);
+
+  // MODALES Y FORMULARIOS DE PARTITURAS (ADMIN)
+  const [mostrarModalNuevaObra, setMostrarModalNuevaObra] = useState(false);
+  const [tituloObra, setTituloObra] = useState('');
+  const [compositorObra, setCompositorObra] = useState('');
+  const [linkAudioObra, setLinkAudioObra] = useState('');
+
+  const [mostrarModalSubirParticela, setMostrarModalSubirParticela] = useState(false);
+  const [obraIdSeleccionada, setObraIdSeleccionada] = useState<string | null>(null);
+  const [instrumentoParticela, setInstrumentoParticela] = useState('');
+  const [familiaParticela, setFamiliaParticela] = useState('Vientos Madera');
+  const [archivoPDF, setArchivoPDF] = useState<File | null>(null);
+  const [subiendoPDF, setSubiendoPDF] = useState(false);
+
   // CALENDARIO
   const [hoy, setHoy] = useState<Date | null>(null);
   const [fechaCalendario, setFechaCalendario] = useState<Date | null>(null);
@@ -64,6 +85,7 @@ export default function Home() {
     setFechaCalendario(ahora);
 
     cargarDatos();
+    cargarPartituras();
     verificarSesion();
 
     const {
@@ -91,13 +113,24 @@ export default function Home() {
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Error cargando datos:', error.message);
-    }
-    if (data) {
-      setIntegrantes(data);
-    }
+    if (error) console.error('Error cargando integrantes:', error.message);
+    if (data) setIntegrantes(data);
     setCargando(false);
+  };
+
+  const cargarPartituras = async () => {
+    const { data: dataObras } = await supabase
+      .from('obras')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    const { data: dataParticelas } = await supabase
+      .from('particelas')
+      .select('*')
+      .order('created_at', { ascending: true });
+
+    if (dataObras) setObras(dataObras);
+    if (dataParticelas) setParticelas(dataParticelas);
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -118,9 +151,7 @@ export default function Home() {
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
-    if (error) {
-      alert('Error al cerrar sesión: ' + error.message);
-    }
+    if (error) alert('Error al cerrar sesión: ' + error.message);
   };
 
   const esMenorDeEdad = (valorEdad: string | number) => {
@@ -133,7 +164,7 @@ export default function Home() {
     return esMenorDeEdad(valorEdad);
   };
 
-  // ENVÍO DE INSCRIPCIÓN
+  // MANEJO DE INTEGRANTES
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nombre.trim() || !instrumento.trim()) {
@@ -198,10 +229,8 @@ export default function Home() {
     }
   };
 
-  // APROBAR O RECHAZAR SOLICITUDES
   const cambiarEstadoRegistro = async (id: string, nuevoEstado: string) => {
     if (!sesion) return;
-
     if (nuevoEstado === 'Eliminar') {
       const confirmar = window.confirm('¿Deseas rechazar y eliminar esta solicitud de registro?');
       if (!confirmar) return;
@@ -209,7 +238,6 @@ export default function Home() {
     } else {
       await supabase.from('integrantes').update({ estado_registro: nuevoEstado }).eq('id', id);
     }
-
     cargarDatos();
   };
 
@@ -232,7 +260,6 @@ export default function Home() {
 
   const guardarEdicion = async (id: string) => {
     const numEdad = editEdad ? parseInt(editEdad, 10) : null;
-
     const { error } = await supabase
       .from('integrantes')
       .update({
@@ -256,51 +283,147 @@ export default function Home() {
       alert('Error al actualizar: ' + error.message);
       return;
     }
-
     setEditandoId(null);
     cargarDatos();
   };
 
   const eliminarIntegrante = async (id: string) => {
-    if (!sesion) {
-      alert('Debes ser Administrador para eliminar registros.');
-      return;
-    }
-
+    if (!sesion) return;
     const confirmar = window.confirm('¿Seguro que deseas eliminar este integrante?');
     if (!confirmar) return;
-
     const { error } = await supabase.from('integrantes').delete().eq('id', id);
-
     if (error) {
       alert('Error al eliminar: ' + error.message);
       return;
     }
-
-    setIntegrantes(integrantes.filter((integrante) => integrante.id !== id));
+    setIntegrantes(integrantes.filter((i) => i.id !== id));
   };
 
-  // FILTRADO
+  // MANEJO DE PARTITURAS (ADMIN)
+  const crearObra = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!sesion) return;
+    if (!tituloObra.trim()) {
+      alert('El título de la obra es obligatorio.');
+      return;
+    }
+
+    const { error } = await supabase.from('obras').insert([
+      {
+        titulo: tituloObra.trim(),
+        compositor_arreglista: compositorObra.trim() || null,
+        proceso: procesoActivo,
+        link_audio: linkAudioObra.trim() || null,
+      },
+    ]);
+
+    if (error) {
+      alert('Error al crear la obra: ' + error.message);
+      return;
+    }
+
+    setTituloObra('');
+    setCompositorObra('');
+    setLinkAudioObra('');
+    setMostrarModalNuevaObra(false);
+    cargarPartituras();
+  };
+
+  const subirParticela = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!sesion) return;
+    if (!obraIdSeleccionada || !instrumentoParticela.trim() || !archivoPDF) {
+      alert('Por favor selecciona la obra, indica el instrumento y sube un archivo PDF.');
+      return;
+    }
+
+    setSubiendoPDF(true);
+
+    try {
+      const nombreLimpio = archivoPDF.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const fileName = `${Date.now()}_${nombreLimpio}`;
+      const { data: storageData, error: storageError } = await supabase.storage
+        .from('partituras')
+        .upload(fileName, archivoPDF, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (storageError) throw storageError;
+
+      const { data: publicUrlData } = supabase.storage
+        .from('partituras')
+        .getPublicUrl(storageData.path);
+
+      const urlPDF = publicUrlData.publicUrl;
+
+      const { error: dbError } = await supabase.from('particelas').insert([
+        {
+          obra_id: obraIdSeleccionada,
+          instrumento: instrumentoParticela.trim(),
+          familia: familiaParticela,
+          url_pdf: urlPDF,
+        },
+      ]);
+
+      if (dbError) throw dbError;
+
+      alert('¡Particela subida con éxito!');
+      setInstrumentoParticela('');
+      setArchivoPDF(null);
+      setMostrarModalSubirParticela(false);
+      cargarPartituras();
+    } catch (err: any) {
+      alert('Error al subir particela: ' + err.message);
+    } finally {
+      setSubiendoPDF(false);
+    }
+  };
+
+  const eliminarObra = async (id: string) => {
+    if (!sesion) return;
+    const confirmar = window.confirm('¿Seguro que deseas eliminar esta obra y todas sus partituras asociados?');
+    if (!confirmar) return;
+
+    await supabase.from('obras').delete().eq('id', id);
+    cargarPartituras();
+  };
+
+  const eliminarParticela = async (id: string) => {
+    if (!sesion) return;
+    const confirmar = window.confirm('¿Deseas eliminar esta partitura?');
+    if (!confirmar) return;
+
+    await supabase.from('particelas').delete().eq('id', id);
+    cargarPartituras();
+  };
+
+  // FILTRADOS DE INTEGRANTES
   const pendientes = integrantes.filter((i) => i.estado_registro === 'Pendiente');
-  
   const filtrados = integrantes.filter((integrante) => {
     const esAprobado = integrante.estado_registro !== 'Pendiente';
     const coincideProceso = integrante.proceso === procesoActivo;
     const termino = busqueda.toLowerCase().trim();
-
     if (!termino) return esAprobado && coincideProceso;
+    return (
+      esAprobado &&
+      coincideProceso &&
+      ((integrante.nombre && integrante.nombre.toLowerCase().includes(termino)) ||
+        (integrante.documento && integrante.documento.toLowerCase().includes(termino)) ||
+        (integrante.instrumento && integrante.instrumento.toLowerCase().includes(termino)))
+    );
+  });
 
-    const coincideTexto =
-      (integrante.nombre && integrante.nombre.toLowerCase().includes(termino)) ||
-      (integrante.documento && integrante.documento.toLowerCase().includes(termino)) ||
-      (integrante.instrumento && integrante.instrumento.toLowerCase().includes(termino)) ||
-      (integrante.celular && integrante.celular.toLowerCase().includes(termino)) ||
-      (integrante.grado_escolar && integrante.grado_escolar.toLowerCase().includes(termino)) ||
-      (integrante.marca_serie && integrante.marca_serie.toLowerCase().includes(termino)) ||
-      (integrante.nombre_acudiente && integrante.nombre_acudiente.toLowerCase().includes(termino)) ||
-      (integrante.documento_acudiente && integrante.documento_acudiente.toLowerCase().includes(termino));
-
-    return esAprobado && coincideProceso && coincideTexto;
+  // FILTRADO DE OBRAS
+  const obrasFiltradas = obras.filter((o) => {
+    const coincideProceso = o.proceso === procesoActivo;
+    const termino = busquedaPartitura.toLowerCase().trim();
+    if (!termino) return coincideProceso;
+    return (
+      coincideProceso &&
+      ((o.titulo && o.titulo.toLowerCase().includes(termino)) ||
+        (o.compositor_arreglista && o.compositor_arreglista.toLowerCase().includes(termino)))
+    );
   });
 
   // HELPER CALENDARIO
@@ -310,16 +433,10 @@ export default function Home() {
     const mes = fecha.getMonth();
     const primerDia = new Date(anio, mes, 1).getDay();
     const totalDias = new Date(anio, mes + 1, 0).getDate();
-
     const inicioAjustado = primerDia === 0 ? 6 : primerDia - 1;
-
     const dias = [];
-    for (let i = 0; i < inicioAjustado; i++) {
-      dias.push(null);
-    }
-    for (let d = 1; d <= totalDias; d++) {
-      dias.push(d);
-    }
+    for (let i = 0; i < inicioAjustado; i++) dias.push(null);
+    for (let d = 1; d <= totalDias; d++) dias.push(d);
     return dias;
   };
 
@@ -330,13 +447,11 @@ export default function Home() {
 
   const cambiarMes = (delta: number) => {
     if (!fechaCalendario) return;
-    const nueva = new Date(fechaCalendario.getFullYear(), fechaCalendario.getMonth() + delta, 1);
-    setFechaCalendario(nueva);
+    setFechaCalendario(new Date(fechaCalendario.getFullYear(), fechaCalendario.getMonth() + delta, 1));
   };
 
   const inputStyle =
     'w-full bg-slate-50 p-3 rounded-xl border border-slate-200 text-slate-800 outline-none focus:border-blue-600 focus:bg-white transition text-sm';
-
   const editInputStyle =
     'w-full bg-slate-50 p-2 rounded-lg border border-slate-200 text-slate-800 text-xs outline-none focus:border-blue-600 mb-2';
 
@@ -346,7 +461,7 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-slate-50 text-slate-800 p-4 md:p-8">
       {/* ENCABEZADO PRINCIPAL */}
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-8 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
         <div className="flex items-center gap-4">
           <img 
             src="/logo.jpg" 
@@ -358,13 +473,12 @@ export default function Home() {
               CODART
             </h1>
             <p className="text-xs md:text-sm text-slate-500 font-medium">
-              Gestión de Integrantes e Instrumentos
+              Plataforma de Gestión e Inventario Musical
             </p>
           </div>
         </div>
         
         <div className="flex items-center gap-2 flex-wrap">
-          {/* BOTÓN PRINCIPAL DE INSCRIPCIÓN PÚBLICA */}
           <button
             onClick={() => setMostrarModalInscripcion(true)}
             className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs md:text-sm font-bold px-4 py-2.5 rounded-xl shadow-xs transition cursor-pointer flex items-center gap-2"
@@ -372,11 +486,10 @@ export default function Home() {
             <span>📝</span> Inscripción / Registro
           </button>
 
-          {/* BOTÓN CÓDIGO QR COMO ENLACE A LA WEB */}
           <button
             onClick={() => setMostrarQR(true)}
             className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-2.5 rounded-xl border border-slate-200 transition cursor-pointer flex items-center gap-1.5"
-            title="Ver o imprimir código QR de enlace a la web"
+            title="Código QR enlace"
           >
             <span>🔗</span> Código QR
           </button>
@@ -404,7 +517,53 @@ export default function Home() {
         </div>
       </div>
 
-      {/* MODAL CÓDIGO QR (ENLACE A LA PÁGINA) */}
+      {/* SELECCIÓN DE MÓDULO (INTEGRANTES VS REPOSITORIO DE PARTITURAS) */}
+      <div className="flex gap-2 mb-6 bg-slate-200/60 p-1.5 rounded-2xl max-w-md mx-auto md:mx-0">
+        <button
+          onClick={() => setModuloActivo('partituras')}
+          className={`flex-1 py-2.5 rounded-xl text-xs md:text-sm font-bold transition cursor-pointer text-center flex items-center justify-center gap-2 ${
+            moduloActivo === 'partituras'
+              ? 'bg-white text-blue-700 shadow-sm'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <span>🎼</span> Repositorio de Partituras
+        </button>
+        <button
+          onClick={() => setModuloActivo('integrantes')}
+          className={`flex-1 py-2.5 rounded-xl text-xs md:text-sm font-bold transition cursor-pointer text-center flex items-center justify-center gap-2 ${
+            moduloActivo === 'integrantes'
+              ? 'bg-white text-blue-700 shadow-sm'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <span>👥</span> Integrantes e Inscripciones
+        </button>
+      </div>
+
+      {/* PESTAÑAS DE AGRUPACIONES / PROCESOS */}
+      <div className="flex gap-3 mb-6 flex-wrap">
+        {[
+          'Banda Filarmónica',
+          'Banda de Marcha',
+          'Prebanda',
+          'Proyecto de Música Escolar',
+        ].map((p) => (
+          <button
+            key={p}
+            onClick={() => setProcesoActivo(p)}
+            className={`px-5 py-2.5 rounded-xl font-semibold text-xs md:text-sm transition cursor-pointer shadow-xs ${
+              procesoActivo === p
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+            }`}
+          >
+            {p}
+          </button>
+        ))}
+      </div>
+
+      {/* MODAL CÓDIGO QR */}
       {mostrarQR && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
           <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-sm text-center relative shadow-2xl space-y-4">
@@ -419,14 +578,12 @@ export default function Home() {
               Código QR de la Plataforma
             </h2>
             <p className="text-xs text-slate-500">
-              Usa este código QR en carteles o volantes. Redirige directamente a esta página de inscripción de <strong>CODART</strong>.
+              Escanea con tu celular para acceder a la plataforma de <strong>CODART</strong>.
             </p>
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 inline-block">
               <img src={qrApiUrl} alt="Código QR CODART" className="w-48 h-48 mx-auto rounded-xl shadow-xs" />
             </div>
-            <p className="text-[11px] font-mono text-slate-400 break-all">
-              {appUrl}
-            </p>
+            <p className="text-[11px] font-mono text-slate-400 break-all">{appUrl}</p>
             <button
               onClick={() => window.print()}
               className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs transition cursor-pointer"
@@ -437,7 +594,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL FORMULARIO DE INSCRIPCIÓN / REGISTRO PÚBLICO */}
+      {/* MODAL INSCRIPCIÓN PÚBLICA */}
       {mostrarModalInscripcion && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
           <div className="bg-white border border-slate-200 p-6 md:p-8 rounded-3xl w-full max-w-lg relative shadow-2xl my-8">
@@ -452,7 +609,7 @@ export default function Home() {
               Formulario de Inscripción
             </h2>
             <p className="text-xs text-slate-500 mb-6">
-              Diligencia tus datos para solicitar el registro en las agrupaciones musicales de CODART.
+              Diligencia tus datos para inscribirte en las agrupaciones musicales de CODART.
             </p>
 
             <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
@@ -519,7 +676,6 @@ export default function Home() {
                 />
               </div>
 
-              {/* CAMPO GRADO ESCOLAR */}
               {procesoInscripcion === 'Proyecto de Música Escolar' && (
                 <div className="bg-indigo-50/70 border border-indigo-200 p-4 rounded-xl space-y-2">
                   <label className="text-xs font-bold text-indigo-900 flex items-center gap-1">
@@ -536,7 +692,6 @@ export default function Home() {
                 </div>
               )}
 
-              {/* SECCIÓN ACUDIENTE */}
               {esMenorDeEdad(edad) && (
                 <div className="bg-amber-50/70 border border-amber-200 p-4 rounded-xl space-y-3">
                   <div className="flex items-center justify-between">
@@ -580,7 +735,6 @@ export default function Home() {
                 </div>
               )}
 
-              {/* CAMPOS DE INSTRUMENTO */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <input
                   type="text"
@@ -640,7 +794,7 @@ export default function Home() {
               ¡Inscripción Recibida!
             </h2>
             <p className="text-sm text-slate-600">
-              Tu solicitud de registro ha sido enviada correctamente. El administrador de <strong>CODART</strong> revisará tu inscripción y habilitará tu registro oficial.
+              Tu solicitud de registro ha sido enviada correctamente. El administrador de <strong>CODART</strong> la revisará y habilitará tu registro oficial.
             </p>
             <button
               onClick={() => setRegistroExitoso(false)}
@@ -694,482 +848,662 @@ export default function Home() {
         </div>
       )}
 
-      {/* PANEL DE SOLICITUDES PENDIENTES (SOLO ADMIN) */}
-      {sesion && pendientes.length > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 mb-8 shadow-sm">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-bold text-amber-900 flex items-center gap-2">
-              <span>🔔</span> Solicitudes Pendientes ({pendientes.length})
+      {/* MODAL NUEVA OBRA (SOLO ADMIN) */}
+      {mostrarModalNuevaObra && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-md relative shadow-2xl">
+            <button
+              type="button"
+              onClick={() => setMostrarModalNuevaObra(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 font-bold"
+            >
+              ✕
+            </button>
+            <h2 className="text-xl font-bold text-slate-900 mb-1">
+              ➕ Añadir Obra Musical
             </h2>
-            <span className="text-xs text-amber-700 font-medium">
-              Inscripciones recibidas para revisar y aprobar
-            </span>
-          </div>
+            <p className="text-xs text-slate-500 mb-4">
+              Agrupación: <strong className="text-blue-600">{procesoActivo}</strong>
+            </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {pendientes.map((solicitud) => (
-              <div key={solicitud.id} className="bg-white border border-amber-200 rounded-xl p-4 shadow-xs space-y-2">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-bold text-slate-900">{solicitud.nombre}</h3>
-                    <p className="text-xs text-blue-600 font-semibold">{solicitud.proceso}</p>
-                  </div>
-                  <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold">
-                    Pendiente
-                  </span>
-                </div>
-
-                <div className="text-xs text-slate-600 space-y-1">
-                  <p>🎵 Instrumento: <strong>{solicitud.instrumento}</strong> ({solicitud.origen_instrumento || 'Prestado'})</p>
-                  <p>📄 Documento: {solicitud.tipo_documento} {solicitud.documento}</p>
-                  {solicitud.edad && <p>🎂 Edad: {solicitud.edad} años</p>}
-                  {solicitud.grado_escolar && <p>🎓 Grado: {solicitud.grado_escolar}</p>}
-                  {solicitud.celular && <p>💬 Celular: {solicitud.celular}</p>}
-                  {solicitud.nombre_acudiente && <p>👨‍👩‍👧 Acudiente: {solicitud.nombre_acudiente} ({solicitud.celular_acudiente})</p>}
-                </div>
-
-                <div className="flex gap-2 pt-2 border-t border-slate-100">
-                  <button
-                    onClick={() => cambiarEstadoRegistro(solicitud.id, 'Aprobado')}
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 rounded-lg transition cursor-pointer"
-                  >
-                    ✓ Aprobar Integrante
-                  </button>
-                  <button
-                    onClick={() => cambiarEstadoRegistro(solicitud.id, 'Eliminar')}
-                    className="bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold px-3 py-2 rounded-lg transition cursor-pointer"
-                  >
-                    ✕ Rechazar
-                  </button>
-                </div>
-              </div>
-            ))}
+            <form onSubmit={crearObra} className="space-y-3">
+              <input
+                type="text"
+                placeholder="Título de la Obra / Marcha / Pieza"
+                value={tituloObra}
+                onChange={(e) => setTituloObra(e.target.value)}
+                className={inputStyle}
+                required
+              />
+              <input
+                type="text"
+                placeholder="Compositor / Arreglista"
+                value={compositorObra}
+                onChange={(e) => setCompositorObra(e.target.value)}
+                className={inputStyle}
+              />
+              <input
+                type="url"
+                placeholder="Enlace a Audio / YouTube de referencia (opcional)"
+                value={linkAudioObra}
+                onChange={(e) => setLinkAudioObra(e.target.value)}
+                className={inputStyle}
+              />
+              <button
+                type="submit"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl text-sm transition cursor-pointer mt-2"
+              >
+                Guardar Obra Musical
+              </button>
+            </form>
           </div>
         </div>
       )}
 
-      {/* PESTAÑAS DE PROCESOS */}
-      <div className="flex gap-3 mb-8 flex-wrap">
-        {[
-          'Banda Filarmónica',
-          'Banda de Marcha',
-          'Prebanda',
-          'Proyecto de Música Escolar',
-        ].map((p) => (
-          <button
-            key={p}
-            onClick={() => setProcesoActivo(p)}
-            className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition cursor-pointer shadow-xs ${
-              procesoActivo === p
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
-            }`}
-          >
-            {p}
-          </button>
-        ))}
-      </div>
-
-      {/* CONTENIDO PRINCIPAL: LISTA Y VISTA PROTEGIDA */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-        {/* TARJETA DE BIENVENIDA E INFORMACIÓN */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
-              <span>🎵</span> Agrupaciones Musicales CODART
-            </h2>
-            <p className="text-sm text-slate-600 leading-relaxed mb-4">
-              Pestaña activa: <strong className="text-blue-600">{procesoActivo}</strong>.
-            </p>
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs text-slate-600 space-y-2">
-              <p className="font-bold text-slate-800">📌 Información para Inscripciones:</p>
-              <p>• Para inscribirte en esta u otra agrupación, haz clic en el botón superior <strong>"📝 Inscripción / Registro"</strong>.</p>
-              <p>• Los registros quedan en estado de revisión y serán verificados por el administrador de la banda.</p>
-            </div>
-          </div>
-
-          <div className="mt-6 pt-4 border-t border-slate-100">
+      {/* MODAL SUBIR PARTICELA PDF (SOLO ADMIN) */}
+      {mostrarModalSubirParticela && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-md relative shadow-2xl">
             <button
-              onClick={() => setMostrarModalInscripcion(true)}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold text-sm transition cursor-pointer shadow-xs"
+              type="button"
+              onClick={() => setMostrarModalSubirParticela(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 font-bold"
             >
-              📝 Realizar Inscripción en {procesoActivo}
+              ✕
             </button>
-          </div>
-        </div>
+            <h2 className="text-xl font-bold text-slate-900 mb-1">
+              📎 Subir Partitura PDF
+            </h2>
+            <p className="text-xs text-slate-500 mb-4">
+              Adjunta el archivo PDF correspondiente a un instrumento.
+            </p>
 
-        {/* LISTA DE INTEGRANTES OFICIALES (PROTEGIDA SOLO PARA ADMIN) */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-          <div className="flex justify-between items-center mb-4">
-            <div>
-              <h2 className="text-lg font-bold text-slate-900">Integrantes Oficiales</h2>
-              <p className="text-xs text-slate-500 font-medium">{procesoActivo}</p>
-            </div>
-            {sesion && (
-              <span className="bg-blue-50 border border-blue-200 px-3 py-1 rounded-xl text-blue-700 text-xs font-bold">
-                Total: {filtrados.length}
-              </span>
-            )}
-          </div>
+            <form onSubmit={subirParticela} className="space-y-3">
+              <div>
+                <label className="text-xs font-bold text-slate-700 mb-1 block">Familia de Instrumentos</label>
+                <select
+                  value={familiaParticela}
+                  onChange={(e) => setFamiliaParticela(e.target.value)}
+                  className={inputStyle}
+                >
+                  <option value="Vientos Madera">Vientos Madera</option>
+                  <option value="Vientos Metal">Vientos Metal</option>
+                  <option value="Percusión">Percusión</option>
+                  <option value="General / Score">General / Score (Director)</option>
+                </select>
+              </div>
 
-          {/* BUSCADOR SOLO PARA ADMIN */}
-          {sesion && (
-            <div className="relative mb-4">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 text-sm">
-                🔍
-              </span>
               <input
                 type="text"
-                placeholder="Buscar por nombre, acudiente, documento..."
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
-                className="w-full bg-slate-50 pl-9 pr-9 py-2.5 rounded-xl border border-slate-200 text-slate-800 text-sm outline-none focus:border-blue-600 focus:bg-white transition"
+                placeholder="Nombre del Instrumento (ej. Clarinete 1, Trompeta 2)"
+                value={instrumentoParticela}
+                onChange={(e) => setInstrumentoParticela(e.target.value)}
+                className={inputStyle}
+                required
               />
-              {busqueda && (
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 mb-1 block">Archivo Partitura (PDF)</label>
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={(e) => setArchivoPDF(e.target.files?.[0] || null)}
+                  className="w-full bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-xs text-slate-700 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={subiendoPDF}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-bold py-3 rounded-xl text-sm transition cursor-pointer mt-2"
+              >
+                {subiendoPDF ? 'Subiendo archivo PDF...' : 'Subir y Asociar Partitura'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* VISTA 1: MÓDULO DE REPOSITORIO DE PARTITURAS */}
+      {moduloActivo === 'partituras' && (
+        <div className="space-y-6">
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                <span>🎼</span> Biblioteca Digital — {procesoActivo}
+              </h2>
+              <p className="text-xs text-slate-500">
+                Selecciona una obra musical para desplegar las partituras e instrumentos disponibles.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 w-full md:w-auto">
+              <div className="relative flex-1 md:w-64">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 text-sm">🔍</span>
+                <input
+                  type="text"
+                  placeholder="Buscar obra o compositor..."
+                  value={busquedaPartitura}
+                  onChange={(e) => setBusquedaPartitura(e.target.value)}
+                  className="w-full bg-slate-50 pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-xs outline-none focus:border-blue-600"
+                />
+              </div>
+
+              {sesion && (
                 <button
-                  type="button"
-                  onClick={() => setBusqueda('')}
-                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 cursor-pointer text-xs"
+                  onClick={() => setMostrarModalNuevaObra(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-xs transition cursor-pointer whitespace-nowrap"
                 >
-                  ✕
+                  ➕ Nueva Obra
                 </button>
               )}
             </div>
-          )}
+          </div>
 
-          {!sesion ? (
-            <div className="text-center py-20 text-slate-400 space-y-3">
-              <p className="text-4xl">🔒</p>
-              <p className="font-semibold text-slate-700">Información Protegida</p>
-              <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                Para proteger los datos personales de los integrantes, esta lista solo es accesible para el Administrador.
+          {/* LISTADO DE OBRAS Y DESGLOSE POR INSTRUMENTOS */}
+          {obrasFiltradas.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-400 space-y-2">
+              <p className="text-3xl">🎺</p>
+              <p className="font-semibold text-slate-700 text-sm">No hay obras registradas en {procesoActivo}</p>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                {sesion
+                  ? 'Haz clic en "Nueva Obra" para subir piezas musicales y sus partituras.'
+                  : 'Próximamente el director subirá el repertorio oficial de esta agrupación.'}
               </p>
             </div>
-          ) : cargando ? (
-            <div className="text-center py-10 text-slate-500">Cargando registros...</div>
-          ) : filtrados.length === 0 ? (
-            <div className="text-center py-10 text-slate-400 text-sm">
-              {busqueda
-                ? `No se encontraron coincidencias para "${busqueda}".`
-                : 'No hay integrantes registrados oficialmente en este proceso.'}
-            </div>
           ) : (
-            <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
-              {filtrados.map((integrante) => (
-                <div
-                  key={integrante.id}
-                  className="bg-slate-50 border border-slate-200 rounded-xl p-4 transition hover:border-blue-300"
-                >
-                  {editandoId === integrante.id ? (
-                    /* MODO EDICIÓN ADMIN */
-                    <div className="space-y-2">
-                      <p className="text-xs font-bold text-blue-600 mb-1">
-                        Editando información:
-                      </p>
-                      <input
-                        type="text"
-                        value={editNombre}
-                        onChange={(e) => setEditNombre(e.target.value)}
-                        className={editInputStyle}
-                        placeholder="Nombre completo"
-                      />
-                      <div className="grid grid-cols-3 gap-2">
-                        <select
-                          value={editTipoDocumento}
-                          onChange={(e) => setEditTipoDocumento(e.target.value)}
-                          className="bg-slate-50 p-2 rounded-lg border border-slate-200 text-slate-800 text-xs outline-none focus:border-blue-600 mb-2 font-semibold"
-                        >
-                          <option value="C.C.">C.C.</option>
-                          <option value="T.I.">T.I.</option>
-                          <option value="R.C.">R.C.</option>
-                          <option value="C.E.">C.E.</option>
-                          <option value="P.A.">P.A.</option>
-                        </select>
-                        <input
-                          type="text"
-                          value={editDocumento}
-                          onChange={(e) => setEditDocumento(e.target.value)}
-                          className="col-span-2 bg-slate-50 p-2 rounded-lg border border-slate-200 text-slate-800 text-xs outline-none focus:border-blue-600 mb-2"
-                          placeholder="Número de documento"
-                        />
-                      </div>
+            <div className="space-y-4">
+              {obrasFiltradas.map((obra) => {
+                const particelasDeObra = particelas.filter((p) => p.obra_id === obra.id);
+                const estaDesplegada = obraDesplegada === obra.id;
 
-                      <div className="grid grid-cols-2 gap-2">
-                        <input
-                          type="number"
-                          value={editEdad}
-                          onChange={(e) => setEditEdad(e.target.value)}
-                          className={editInputStyle}
-                          placeholder="Edad"
-                        />
-                        <input
-                          type="tel"
-                          value={editCelular}
-                          onChange={(e) => setEditCelular(e.target.value)}
-                          className={editInputStyle}
-                          placeholder="Celular"
-                        />
-                      </div>
+                const maderas = particelasDeObra.filter((p) => p.familia === 'Vientos Madera');
+                const metales = particelasDeObra.filter((p) => p.familia === 'Vientos Metal');
+                const percusion = particelasDeObra.filter((p) => p.familia === 'Percusión');
+                const general = particelasDeObra.filter((p) => p.familia === 'General / Score');
 
-                      {procesoActivo === 'Proyecto de Música Escolar' && (
-                        <input
-                          type="text"
-                          value={editGradoEscolar}
-                          onChange={(e) => setEditGradoEscolar(e.target.value)}
-                          className={editInputStyle}
-                          placeholder="Grado escolar"
-                        />
-                      )}
-
-                      {esMenorDeEdad(editEdad) && (
-                        <div className="bg-amber-50 p-3 rounded-lg border border-amber-200 space-y-2 my-2">
-                          <p className="text-xs font-bold text-amber-800">
-                            👨‍👩‍👧 Datos del Acudiente:
-                          </p>
-                          <input
-                            type="text"
-                            value={editNombreAcudiente}
-                            onChange={(e) => setEditNombreAcudiente(e.target.value)}
-                            className="w-full bg-white p-2 rounded border border-amber-200 text-xs outline-none"
-                            placeholder="Nombre acudiente"
-                          />
-                          <div className="grid grid-cols-2 gap-2">
-                            <input
-                              type="text"
-                              value={editDocumentoAcudiente}
-                              onChange={(e) => setEditDocumentoAcudiente(e.target.value)}
-                              className="w-full bg-white p-2 rounded border border-amber-200 text-xs outline-none"
-                              placeholder="Cédula acudiente"
-                            />
-                            <input
-                              type="tel"
-                              value={editCelularAcudiente}
-                              onChange={(e) => setEditCelularAcudiente(e.target.value)}
-                              className="w-full bg-white p-2 rounded border border-amber-200 text-xs outline-none"
-                              placeholder="Celular acudiente"
-                            />
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="grid grid-cols-2 gap-2">
-                        <input
-                          type="text"
-                          value={editInstrumento}
-                          onChange={(e) => setEditInstrumento(e.target.value)}
-                          className={editInputStyle}
-                          placeholder="Instrumento"
-                        />
-                        <select
-                          value={editOrigenInstrumento}
-                          onChange={(e) => setEditOrigenInstrumento(e.target.value)}
-                          className="bg-slate-50 p-2 rounded-lg border border-slate-200 text-slate-800 text-xs outline-none focus:border-blue-600 mb-2 font-semibold"
-                        >
-                          <option value="Prestado (CODART)">Prestado (CODART)</option>
-                          <option value="Propio">Instrumento Propio</option>
-                        </select>
-                      </div>
-
-                      <input
-                        type="text"
-                        value={editMarcaSerie}
-                        onChange={(e) => setEditMarcaSerie(e.target.value)}
-                        className={editInputStyle}
-                        placeholder="Marca y Serie"
-                      />
-                      <select
-                        value={editEstadoInstrumento}
-                        onChange={(e) => setEditEstadoInstrumento(e.target.value)}
-                        className={editInputStyle}
-                      >
-                        <option value="Excelente">Excelente</option>
-                        <option value="Bueno">Bueno</option>
-                        <option value="Regular">Regular</option>
-                        <option value="Mantenimiento">Mantenimiento</option>
-                      </select>
-
-                      <div className="flex gap-2 pt-2">
-                        <button
-                          onClick={() => guardarEdicion(integrante.id)}
-                          className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer"
-                        >
-                          💾 Guardar
-                        </button>
-                        <button
-                          onClick={() => setEditandoId(null)}
-                          className="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer"
-                        >
-                          Cancelar
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    /* MODO VISTA NORMAL ADMIN */
-                    <div className="flex justify-between gap-4">
+                return (
+                  <div
+                    key={obra.id}
+                    className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs transition hover:border-blue-300"
+                  >
+                    {/* ENCABEZADO DE LA OBRA */}
+                    <div
+                      onClick={() => setObraDesplegada(estaDesplegada ? null : obra.id)}
+                      className="p-5 flex justify-between items-center cursor-pointer bg-slate-50/50 hover:bg-slate-50 transition"
+                    >
                       <div className="space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-bold text-slate-900">
-                            {integrante.nombre}
-                          </h3>
-                          {integrante.edad && (
-                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">
-                              {integrante.edad} años
-                            </span>
-                          )}
-                          {integrante.edad && integrante.edad < 18 && (
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
-                              Menor de edad
-                            </span>
-                          )}
-                        </div>
-
-                        {integrante.proceso === 'Proyecto de Música Escolar' && integrante.grado_escolar && (
-                          <p className="text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md inline-block border border-indigo-200">
-                            🎓 Grado: {integrante.grado_escolar}
-                          </p>
-                        )}
-
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm text-blue-600 font-semibold">
-                            🎵 {integrante.instrumento}
-                          </p>
-                          <span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
-                              integrante.origen_instrumento === 'Propio'
-                                ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
-                                : 'bg-rose-50 text-rose-700 border-rose-200'
-                            }`}
-                          >
-                            {integrante.origen_instrumento || 'Prestado (CODART)'}
+                          <h3 className="font-bold text-slate-900 text-base">{obra.titulo}</h3>
+                          <span className="text-[10px] bg-blue-50 text-blue-700 font-bold px-2 py-0.5 rounded-md border border-blue-200">
+                            {particelasDeObra.length} partituras
                           </span>
                         </div>
-
-                        {integrante.documento && (
+                        {obra.compositor_arreglista && (
                           <p className="text-xs text-slate-500">
-                            Documento: {integrante.tipo_documento || 'C.C.'} {integrante.documento}
+                            Compositor / Arr: <strong>{obra.compositor_arreglista}</strong>
                           </p>
                         )}
+                      </div>
 
-                        {integrante.celular && (
-                          <p className="text-xs">
-                            <a
-                              href={`https://wa.me/57${integrante.celular.replace(/\D/g, '')}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-emerald-600 hover:underline inline-flex items-center gap-1 font-medium"
-                              title="Abrir WhatsApp"
-                            >
-                              💬 Celular: {integrante.celular}
-                            </a>
-                          </p>
+                      <div className="flex items-center gap-3">
+                        {obra.link_audio && (
+                          <a
+                            href={obra.link_audio}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-xs bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold px-3 py-1.5 rounded-lg border border-rose-200 transition flex items-center gap-1"
+                          >
+                            🎧 Guía Audio
+                          </a>
                         )}
 
-                        {integrante.edad < 18 && integrante.nombre_acudiente && (
-                          <div className="mt-2 bg-amber-50/80 border border-amber-200 p-2.5 rounded-lg text-xs space-y-0.5">
-                            <p className="font-bold text-amber-900 flex items-center gap-1">
-                              👨‍👩‍👧 Acudiente: {integrante.nombre_acudiente}
-                            </p>
-                            {integrante.documento_acudiente && (
-                              <p className="text-slate-600 text-[11px]">
-                                Cédula: {integrante.documento_acudiente}
-                              </p>
+                        {sesion && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setObraIdSeleccionada(obra.id);
+                              setMostrarModalSubirParticela(true);
+                            }}
+                            className="text-xs bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold px-3 py-1.5 rounded-lg border border-emerald-200 transition"
+                            title="Subir PDF por instrumento"
+                          >
+                            📎 Subir PDF
+                          </button>
+                        )}
+
+                        {sesion && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              eliminarObra(obra.id);
+                            }}
+                            className="text-xs bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold px-2.5 py-1.5 rounded-lg transition"
+                            title="Eliminar obra"
+                          >
+                            🗑️
+                          </button>
+                        )}
+
+                        <span className="text-slate-400 font-bold text-sm">
+                          {estaDesplegada ? '▲' : '▼'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* ACORDEÓN DESPLEGABLE CON INSTRUMENTOS */}
+                    {estaDesplegada && (
+                      <div className="p-5 border-t border-slate-100 bg-white space-y-4 animate-fade-in">
+                        {particelasDeObra.length === 0 ? (
+                          <p className="text-xs text-slate-400 italic text-center py-4">
+                            No se han adjuntado partituras a esta obra aún.
+                          </p>
+                        ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* VIENTOS MADERA */}
+                            {maderas.length > 0 && (
+                              <div className="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/80 space-y-2">
+                                <h4 className="text-xs font-bold text-emerald-800 flex items-center gap-1">
+                                  🎷 Vientos Madera
+                                </h4>
+                                <div className="space-y-1.5">
+                                  {maderas.map((p) => (
+                                    <div key={p.id} className="flex justify-between items-center bg-white p-2 rounded-lg border border-slate-200 text-xs">
+                                      <span className="font-semibold text-slate-800">{p.instrumento}</span>
+                                      <div className="flex items-center gap-2">
+                                        <a
+                                          href={p.url_pdf}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-[11px] bg-blue-50 text-blue-700 font-bold px-2.5 py-1 rounded-md hover:bg-blue-100 transition"
+                                        >
+                                          👁️ Ver PDF
+                                        </a>
+                                        {sesion && (
+                                          <button
+                                            onClick={() => eliminarParticela(p.id)}
+                                            className="text-rose-600 text-xs hover:text-rose-800 font-bold"
+                                          >
+                                            ✕
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
                             )}
-                            {integrante.celular_acudiente && (
-                              <p className="text-[11px]">
-                                <a
-                                  href={`https://wa.me/57${integrante.celular_acudiente.replace(/\D/g, '')}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-emerald-700 font-semibold hover:underline inline-flex items-center gap-1"
-                                >
-                                  💬 Celular Acudiente: {integrante.celular_acudiente}
-                                </a>
-                              </p>
+
+                            {/* VIENTOS METAL */}
+                            {metales.length > 0 && (
+                              <div className="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/80 space-y-2">
+                                <h4 className="text-xs font-bold text-amber-800 flex items-center gap-1">
+                                  🎺 Vientos Metal
+                                </h4>
+                                <div className="space-y-1.5">
+                                  {metales.map((p) => (
+                                    <div key={p.id} className="flex justify-between items-center bg-white p-2 rounded-lg border border-slate-200 text-xs">
+                                      <span className="font-semibold text-slate-800">{p.instrumento}</span>
+                                      <div className="flex items-center gap-2">
+                                        <a
+                                          href={p.url_pdf}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-[11px] bg-blue-50 text-blue-700 font-bold px-2.5 py-1 rounded-md hover:bg-blue-100 transition"
+                                        >
+                                          👁️ Ver PDF
+                                        </a>
+                                        {sesion && (
+                                          <button
+                                            onClick={() => eliminarParticela(p.id)}
+                                            className="text-rose-600 text-xs hover:text-rose-800 font-bold"
+                                          >
+                                            ✕
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* PERCUSIÓN */}
+                            {percusion.length > 0 && (
+                              <div className="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/80 space-y-2">
+                                <h4 className="text-xs font-bold text-purple-800 flex items-center gap-1">
+                                  🥁 Percusión
+                                </h4>
+                                <div className="space-y-1.5">
+                                  {percusion.map((p) => (
+                                    <div key={p.id} className="flex justify-between items-center bg-white p-2 rounded-lg border border-slate-200 text-xs">
+                                      <span className="font-semibold text-slate-800">{p.instrumento}</span>
+                                      <div className="flex items-center gap-2">
+                                        <a
+                                          href={p.url_pdf}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-[11px] bg-blue-50 text-blue-700 font-bold px-2.5 py-1 rounded-md hover:bg-blue-100 transition"
+                                        >
+                                          👁️ Ver PDF
+                                        </a>
+                                        {sesion && (
+                                          <button
+                                            onClick={() => eliminarParticela(p.id)}
+                                            className="text-rose-600 text-xs hover:text-rose-800 font-bold"
+                                          >
+                                            ✕
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* GENERAL / SCORE */}
+                            {general.length > 0 && (
+                              <div className="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/80 space-y-2">
+                                <h4 className="text-xs font-bold text-indigo-800 flex items-center gap-1">
+                                  🎼 General / Score Director
+                                </h4>
+                                <div className="space-y-1.5">
+                                  {general.map((p) => (
+                                    <div key={p.id} className="flex justify-between items-center bg-white p-2 rounded-lg border border-slate-200 text-xs">
+                                      <span className="font-semibold text-slate-800">{p.instrumento}</span>
+                                      <div className="flex items-center gap-2">
+                                        <a
+                                          href={p.url_pdf}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-[11px] bg-blue-50 text-blue-700 font-bold px-2.5 py-1 rounded-md hover:bg-blue-100 transition"
+                                        >
+                                          👁️ Ver PDF
+                                        </a>
+                                        {sesion && (
+                                          <button
+                                            onClick={() => eliminarParticela(p.id)}
+                                            className="text-rose-600 text-xs hover:text-rose-800 font-bold"
+                                          >
+                                            ✕
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
                             )}
                           </div>
                         )}
-
-                        <p className="text-xs text-slate-500">
-                          Marca / Serie: {integrante.marca_serie || 'No especificada'}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          Estado: <span className="font-semibold text-slate-700">{integrante.estado_instrumento || 'Excelente'}</span>
-                        </p>
                       </div>
-
-                      <div className="flex flex-col gap-2 items-end justify-start">
-                        <button
-                          onClick={() => iniciarEdicion(integrante)}
-                          className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-2.5 py-1.5 rounded-lg transition cursor-pointer"
-                          title="Editar"
-                        >
-                          ✏️ Editar
-                        </button>
-                        <button
-                          onClick={() => eliminarIntegrante(integrante.id)}
-                          className="bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold px-2.5 py-1.5 rounded-lg transition cursor-pointer"
-                          title="Eliminar"
-                        >
-                          🗑️
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
-      </div>
+      )}
 
-      {/* CALENDARIO */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm max-w-xl mx-auto">
+      {/* VISTA 2: MÓDULO DE INTEGRANTES Y SOLICITUDES */}
+      {moduloActivo === 'integrantes' && (
+        <div className="space-y-8">
+          {sesion && pendientes.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 shadow-sm">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-bold text-amber-900 flex items-center gap-2">
+                  <span>🔔</span> Solicitudes Pendientes ({pendientes.length})
+                </h2>
+                <span className="text-xs text-amber-700 font-medium">Inscripciones para revisar</span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {pendientes.map((solicitud) => (
+                  <div key={solicitud.id} className="bg-white border border-amber-200 rounded-xl p-4 shadow-xs space-y-2">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="font-bold text-slate-900">{solicitud.nombre}</h3>
+                        <p className="text-xs text-blue-600 font-semibold">{solicitud.proceso}</p>
+                      </div>
+                      <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold">
+                        Pendiente
+                      </span>
+                    </div>
+
+                    <div className="text-xs text-slate-600 space-y-1">
+                      <p>🎵 Instrumento: <strong>{solicitud.instrumento}</strong> ({solicitud.origen_instrumento || 'Prestado'})</p>
+                      <p>📄 Documento: {solicitud.tipo_documento} {solicitud.documento}</p>
+                      {solicitud.edad && <p>🎂 Edad: {solicitud.edad} años</p>}
+                      {solicitud.grado_escolar && <p>🎓 Grado: {solicitud.grado_escolar}</p>}
+                      {solicitud.celular && <p>💬 Celular: {solicitud.celular}</p>}
+                      {solicitud.nombre_acudiente && <p>👨‍👩‍👧 Acudiente: {solicitud.nombre_acudiente} ({solicitud.celular_acudiente})</p>}
+                    </div>
+
+                    <div className="flex gap-2 pt-2 border-t border-slate-100">
+                      <button
+                        onClick={() => cambiarEstadoRegistro(solicitud.id, 'Aprobado')}
+                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 rounded-lg transition cursor-pointer"
+                      >
+                        ✓ Aprobar Integrante
+                      </button>
+                      <button
+                        onClick={() => cambiarEstadoRegistro(solicitud.id, 'Eliminar')}
+                        className="bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold px-3 py-2 rounded-lg transition cursor-pointer"
+                      >
+                        ✕ Rechazar
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                  <span>🎵</span> Agrupaciones Musicales CODART
+                </h2>
+                <p className="text-sm text-slate-600 leading-relaxed mb-4">
+                  Pestaña activa: <strong className="text-blue-600">{procesoActivo}</strong>.
+                </p>
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs text-slate-600 space-y-2">
+                  <p className="font-bold text-slate-800">📌 Información para Inscripciones:</p>
+                  <p>• Para inscribirte en esta u otra agrupación, haz clic en el botón superior <strong>"📝 Inscripción / Registro"</strong>.</p>
+                  <p>• Los registros quedan en revisión y serán verificado por la administración de CODART.</p>
+                </div>
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-slate-100">
+                <button
+                  onClick={() => setMostrarModalInscripcion(true)}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold text-sm transition cursor-pointer shadow-xs"
+                >
+                  📝 Realizar Inscripción en {procesoActivo}
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">Integrantes Oficiales</h2>
+                  <p className="text-xs text-slate-500 font-medium">{procesoActivo}</p>
+                </div>
+                {sesion && (
+                  <span className="bg-blue-50 border border-blue-200 px-3 py-1 rounded-xl text-blue-700 text-xs font-bold">
+                    Total: {filtrados.length}
+                  </span>
+                )}
+              </div>
+
+              {sesion && (
+                <div className="relative mb-4">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 text-sm">🔍</span>
+                  <input
+                    type="text"
+                    placeholder="Buscar integrante..."
+                    value={busqueda}
+                    onChange={(e) => setBusqueda(e.target.value)}
+                    className="w-full bg-slate-50 pl-9 pr-9 py-2.5 rounded-xl border border-slate-200 text-slate-800 text-sm outline-none focus:border-blue-600 focus:bg-white transition"
+                  />
+                  {busqueda && (
+                    <button
+                      type="button"
+                      onClick={() => setBusqueda('')}
+                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 text-xs"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {!sesion ? (
+                <div className="text-center py-20 text-slate-400 space-y-3">
+                  <p className="text-4xl">🔒</p>
+                  <p className="font-semibold text-slate-700">Información Protegida</p>
+                  <p className="text-xs text-slate-500 max-w-xs mx-auto">
+                    Esta lista solo es accesible para el Administrador para proteger los datos personales.
+                  </p>
+                </div>
+              ) : cargando ? (
+                <div className="text-center py-10 text-slate-500">Cargando registros...</div>
+              ) : filtrados.length === 0 ? (
+                <div className="text-center py-10 text-slate-400 text-sm">
+                  {busqueda ? `No hay resultados para "${busqueda}".` : 'No hay integrantes en este proceso.'}
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
+                  {filtrados.map((integrante) => (
+                    <div key={integrante.id} className="bg-slate-50 border border-slate-200 rounded-xl p-4 transition hover:border-blue-300">
+                      {editandoId === integrante.id ? (
+                        <div className="space-y-2">
+                          <p className="text-xs font-bold text-blue-600 mb-1">Editando información:</p>
+                          <input type="text" value={editNombre} onChange={(e) => setEditNombre(e.target.value)} className={editInputStyle} placeholder="Nombre completo" />
+                          <div className="grid grid-cols-3 gap-2">
+                            <select value={editTipoDocumento} onChange={(e) => setEditTipoDocumento(e.target.value)} className="bg-slate-50 p-2 rounded-lg border border-slate-200 text-slate-800 text-xs outline-none font-semibold">
+                              <option value="C.C.">C.C.</option>
+                              <option value="T.I.">T.I.</option>
+                              <option value="R.C.">R.C.</option>
+                              <option value="C.E.">C.E.</option>
+                              <option value="P.A.">P.A.</option>
+                            </select>
+                            <input type="text" value={editDocumento} onChange={(e) => setEditDocumento(e.target.value)} className="col-span-2 bg-slate-50 p-2 rounded-lg border border-slate-200 text-slate-800 text-xs outline-none" placeholder="Documento" />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <input type="number" value={editEdad} onChange={(e) => setEditEdad(e.target.value)} className={editInputStyle} placeholder="Edad" />
+                            <input type="tel" value={editCelular} onChange={(e) => setEditCelular(e.target.value)} className={editInputStyle} placeholder="Celular" />
+                          </div>
+                          {procesoActivo === 'Proyecto de Música Escolar' && (
+                            <input type="text" value={editGradoEscolar} onChange={(e) => setEditGradoEscolar(e.target.value)} className={editInputStyle} placeholder="Grado escolar" />
+                          )}
+                          {esMenorDeEdad(editEdad) && (
+                            <div className="bg-amber-50 p-3 rounded-lg border border-amber-200 space-y-2 my-2">
+                              <p className="text-xs font-bold text-amber-800">👨‍👩‍👧 Datos del Acudiente:</p>
+                              <input type="text" value={editNombreAcudiente} onChange={(e) => setEditNombreAcudiente(e.target.value)} className="w-full bg-white p-2 rounded border border-amber-200 text-xs outline-none" placeholder="Nombre acudiente" />
+                              <div className="grid grid-cols-2 gap-2">
+                                <input type="text" value={editDocumentoAcudiente} onChange={(e) => setEditDocumentoAcudiente(e.target.value)} className="w-full bg-white p-2 rounded border border-amber-200 text-xs outline-none" placeholder="Cédula acudiente" />
+                                <input type="tel" value={editCelularAcudiente} onChange={(e) => setEditCelularAcudiente(e.target.value)} className="w-full bg-white p-2 rounded border border-amber-200 text-xs outline-none" placeholder="Celular acudiente" />
+                              </div>
+                            </div>
+                          )}
+                          <div className="grid grid-cols-2 gap-2">
+                            <input type="text" value={editInstrumento} onChange={(e) => setEditInstrumento(e.target.value)} className={editInputStyle} placeholder="Instrumento" />
+                            <select value={editOrigenInstrumento} onChange={(e) => setEditOrigenInstrumento(e.target.value)} className="bg-slate-50 p-2 rounded-lg border border-slate-200 text-slate-800 text-xs outline-none font-semibold">
+                              <option value="Prestado (CODART)">Prestado (CODART)</option>
+                              <option value="Propio">Instrumento Propio</option>
+                            </select>
+                          </div>
+                          <input type="text" value={editMarcaSerie} onChange={(e) => setEditMarcaSerie(e.target.value)} className={editInputStyle} placeholder="Marca y Serie" />
+                          <select value={editEstadoInstrumento} onChange={(e) => setEditEstadoInstrumento(e.target.value)} className={editInputStyle}>
+                            <option value="Excelente">Excelente</option>
+                            <option value="Bueno">Bueno</option>
+                            <option value="Regular">Regular</option>
+                            <option value="Mantenimiento">Mantenimiento</option>
+                          </select>
+                          <div className="flex gap-2 pt-2">
+                            <button onClick={() => guardarEdicion(integrante.id)} className="bg-emerald-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">💾 Guardar</button>
+                            <button onClick={() => setEditandoId(null)} className="bg-slate-200 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-lg">Cancelar</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex justify-between gap-4">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="font-bold text-slate-900">{integrante.nombre}</h3>
+                              {integrante.edad && <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">{integrante.edad} años</span>}
+                            </div>
+                            {integrante.proceso === 'Proyecto de Música Escolar' && integrante.grado_escolar && (
+                              <p className="text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md inline-block border border-indigo-200">🎓 Grado: {integrante.grado_escolar}</p>
+                            )}
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-sm text-blue-600 font-semibold">🎵 {integrante.instrumento}</p>
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${integrante.origen_instrumento === 'Propio' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>{integrante.origen_instrumento || 'Prestado (CODART)'}</span>
+                            </div>
+                            {integrante.documento && <p className="text-xs text-slate-500">Documento: {integrante.tipo_documento || 'C.C.'} {integrante.documento}</p>}
+                            {integrante.celular && (
+                              <p className="text-xs">
+                                <a href={`https://wa.me/57${integrante.celular.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:underline inline-flex items-center gap-1 font-medium">💬 Celular: {integrante.celular}</a>
+                              </p>
+                            )}
+                            {integrante.edad < 18 && integrante.nombre_acudiente && (
+                              <div className="mt-2 bg-amber-50/80 border border-amber-200 p-2.5 rounded-lg text-xs space-y-0.5">
+                                <p className="font-bold text-amber-900">👨‍👩‍👧 Acudiente: {integrante.nombre_acudiente}</p>
+                                {integrante.documento_acudiente && <p className="text-slate-600 text-[11px]">Cédula: {integrante.documento_acudiente}</p>}
+                                {integrante.celular_acudiente && (
+                                  <p className="text-[11px]">
+                                    <a href={`https://wa.me/57${integrante.celular_acudiente.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-emerald-700 font-semibold hover:underline">💬 Celular Acudiente: {integrante.celular_acudiente}</a>
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex flex-col gap-2 items-end justify-start">
+                            <button onClick={() => iniciarEdicion(integrante)} className="bg-slate-100 text-slate-700 text-xs font-bold px-2.5 py-1.5 rounded-lg">✏️ Editar</button>
+                            <button onClick={() => eliminarIntegrante(integrante.id)} className="bg-rose-50 text-rose-600 text-xs font-bold px-2.5 py-1.5 rounded-lg">🗑️</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CALENDARIO GENERAL */}
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm max-w-xl mx-auto mt-8">
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-2">
             <span className="text-xl">📅</span>
-            <h2 className="text-lg font-bold text-slate-900">
-              Calendario de Eventos y Ensayos
-            </h2>
+            <h2 className="text-lg font-bold text-slate-900">Calendario de Eventos y Ensayos</h2>
           </div>
           {fechaCalendario && (
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => cambiarMes(-1)}
-                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer"
-                title="Mes anterior"
-              >
-                ◀
-              </button>
+              <button onClick={() => cambiarMes(-1)} className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer">◀</button>
               <span className="text-sm font-bold text-blue-600 min-w-[130px] text-center">
                 {nombresMeses[fechaCalendario.getMonth()]} {fechaCalendario.getFullYear()}
               </span>
-              <button
-                onClick={() => cambiarMes(1)}
-                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer"
-                title="Mes siguiente"
-              >
-                ▶
-              </button>
+              <button onClick={() => cambiarMes(1)} className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer">▶</button>
             </div>
           )}
         </div>
 
         <div className="grid grid-cols-7 gap-2 text-center text-xs font-bold text-slate-400 mb-2">
-          <span>Lun</span>
-          <span>Mar</span>
-          <span>Mié</span>
-          <span>Jue</span>
-          <span>Vie</span>
-          <span>Sáb</span>
-          <span>Dom</span>
+          <span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span>
         </div>
 
         <div className="grid grid-cols-7 gap-2 text-center">
           {obtenerDiasDelMes(fechaCalendario).map((dia, index) => {
-            if (!dia) {
-              return <div key={`empty-${index}`} className="h-10"></div>;
-            }
-
+            if (!dia) return <div key={`empty-${index}`} className="h-10"></div>;
             const esHoy =
               hoy &&
               fechaCalendario &&
@@ -1194,13 +1528,9 @@ export default function Home() {
 
         <div className="mt-4 pt-4 border-t border-slate-100 flex justify-between items-center text-xs text-slate-500">
           <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block"></span>
-            Día actual resaltado
+            <span className="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block"></span> Día actual
           </span>
-          <button
-            onClick={() => setFechaCalendario(new Date())}
-            className="text-blue-600 hover:underline font-semibold cursor-pointer"
-          >
+          <button onClick={() => setFechaCalendario(new Date())} className="text-blue-600 hover:underline font-semibold cursor-pointer">
             Ir a hoy
           </button>
         </div>
