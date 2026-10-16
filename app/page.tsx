@@ -180,7 +180,7 @@ export default function Home() {
 
   const handleLogoutAdmin = async () => {
     await supabase.auth.signOut();
-    setModuloActivo('integrantes');
+    setModuloActivo('partituras');
   };
 
   // LOGIN INTEGRANTE
@@ -226,7 +226,7 @@ export default function Home() {
   const handleLogoutIntegrante = () => {
     setSesionIntegrante(null);
     localStorage.removeItem('codart_integrante');
-    setModuloActivo('integrantes');
+    setModuloActivo('partituras');
   };
 
   const esMenorDeEdad = (valorEdad: string | number) => {
@@ -234,7 +234,7 @@ export default function Home() {
     return !isNaN(num) && num > 0 && num < 18;
   };
 
-  // INSCRIPCIÓN PÚBLICA (SOPORTA MÚLTIPLES PROGRAMAS POR DOCUMENTO)
+  // INSCRIPCIÓN PÚBLICA
   const handleSubmitInscripcion = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nombre.trim() || !documento.trim() || !instrumento.trim()) {
@@ -309,7 +309,7 @@ export default function Home() {
     alert('¡Proceso e instrumento aprobado con éxito!');
   };
 
-  // REGISTRO DIRECTO DESDE ADMIN (SOPORTA MÚLTIPLES PROGRAMAS POR DOCUMENTO)
+  // REGISTRO DIRECTO DESDE ADMIN
   const handleRegistroAdminDirecto = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!sesionAdmin) return;
@@ -576,6 +576,8 @@ export default function Home() {
   const appUrl = typeof window !== 'undefined' ? window.location.href : 'https://codart-gestion.vercel.app';
   const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(appUrl)}`;
 
+  const usuarioAutenticado = Boolean(sesionAdmin || sesionIntegrante);
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-800 p-4 md:p-8">
       {/* ENCABEZADO */}
@@ -610,308 +612,326 @@ export default function Home() {
         </div>
       </div>
 
-      {/* MENÚ DE NAVEGACIÓN PRINCIPAL */}
-      <div className="flex border-b border-slate-200 mb-6 gap-2">
-        <button
-          onClick={() => setModuloActivo('partituras')}
-          className={`pb-3 px-4 text-sm font-bold transition cursor-pointer border-b-2 ${
-            moduloActivo === 'partituras'
-              ? 'border-indigo-600 text-indigo-600'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          📚 Repositorio de Partituras
-        </button>
-        <button
-          onClick={() => setModuloActivo('integrantes')}
-          className={`pb-3 px-4 text-sm font-bold transition cursor-pointer border-b-2 ${
-            moduloActivo === 'integrantes'
-              ? 'border-indigo-600 text-indigo-600'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          👥 Gestión de Integrantes
-        </button>
-        {sesionAdmin && (
-          <button
-            onClick={() => setModuloActivo('pendientes')}
-            className={`pb-3 px-4 text-sm font-bold transition cursor-pointer border-b-2 flex items-center gap-2 ${
-              moduloActivo === 'pendientes'
-                ? 'border-amber-500 text-amber-600'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <span>⏳ Solicitudes Pendientes</span>
-            {pendientesList.length > 0 && (
-              <span className="bg-amber-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">
-                {pendientesList.length}
-              </span>
-            )}
-          </button>
-        )}
-      </div>
-
-      {/* SELECCIÓN DE PROGRAMA / PROCESO */}
-      <div className="flex gap-2 overflow-x-auto pb-4 mb-6 scrollbar-none">
-        {['Banda Filarmónica', 'Banda de Marcha', 'Prebanda', 'Proyecto de Música Escolar'].map((proc) => (
-          <button
-            key={proc}
-            onClick={() => setProcesoActivo(proc)}
-            className={`px-4 py-2 rounded-xl text-xs md:text-sm font-bold whitespace-nowrap transition cursor-pointer ${
-              procesoActivo === proc
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-            }`}
-          >
-            {proc}
-          </button>
-        ))}
-      </div>
-
-      {/* MODULO 1: REPOSITORIO DE PARTITURAS */}
-      {moduloActivo === 'partituras' && (
-        <div className="space-y-6">
-          <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-            <input
-              type="text"
-              placeholder={`Buscar obra o compositor en ${procesoActivo}...`}
-              value={busquedaPartitura}
-              onChange={(e) => setBusquedaPartitura(e.target.value)}
-              className={inputStyle}
-            />
+      {/* VISTA PRIVADA (SOLO SI SE INICIÓ SESIÓN) */}
+      {usuarioAutenticado ? (
+        <>
+          {/* MENÚ DE NAVEGACIÓN PRINCIPAL */}
+          <div className="flex border-b border-slate-200 mb-6 gap-2">
+            <button
+              onClick={() => setModuloActivo('partituras')}
+              className={`pb-3 px-4 text-sm font-bold transition cursor-pointer border-b-2 ${
+                moduloActivo === 'partituras'
+                  ? 'border-indigo-600 text-indigo-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              📚 Repositorio de Partituras
+            </button>
+            <button
+              onClick={() => setModuloActivo('integrantes')}
+              className={`pb-3 px-4 text-sm font-bold transition cursor-pointer border-b-2 ${
+                moduloActivo === 'integrantes'
+                  ? 'border-indigo-600 text-indigo-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              👥 Gestión de Integrantes
+            </button>
             {sesionAdmin && (
               <button
-                onClick={() => setMostrarModalNuevaCarpeta(true)}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-3 rounded-xl transition cursor-pointer whitespace-nowrap"
+                onClick={() => setModuloActivo('pendientes')}
+                className={`pb-3 px-4 text-sm font-bold transition cursor-pointer border-b-2 flex items-center gap-2 ${
+                  moduloActivo === 'pendientes'
+                    ? 'border-amber-500 text-amber-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
               >
-                + Nueva Obra
+                <span>⏳ Solicitudes Pendientes</span>
+                {pendientesList.length > 0 && (
+                  <span className="bg-amber-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">
+                    {pendientesList.length}
+                  </span>
+                )}
               </button>
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* LISTA DE OBRAS */}
-            <div className="md:col-span-1 space-y-3">
-              <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Obras Disponibles</h3>
-              {obrasFiltradas.length === 0 ? (
-                <div className="p-8 text-center bg-white rounded-2xl border border-slate-200 text-slate-400 text-sm">
-                  No hay obras registradas para este proceso.
-                </div>
-              ) : (
-                obrasFiltradas.map((obra) => (
-                  <div
-                    key={obra.id}
-                    onClick={() => setObraSeleccionadaDrive(obra)}
-                    className={`p-4 rounded-2xl border transition cursor-pointer flex justify-between items-center ${
-                      obraSeleccionadaDrive?.id === obra.id
-                        ? 'bg-indigo-50/60 border-indigo-200 text-indigo-900 shadow-xs'
-                        : 'bg-white border-slate-200 hover:border-slate-300 text-slate-800'
-                    }`}
+          {/* SELECCIÓN DE PROGRAMA / PROCESO */}
+          <div className="flex gap-2 overflow-x-auto pb-4 mb-6 scrollbar-none">
+            {['Banda Filarmónica', 'Banda de Marcha', 'Prebanda', 'Proyecto de Música Escolar'].map((proc) => (
+              <button
+                key={proc}
+                onClick={() => setProcesoActivo(proc)}
+                className={`px-4 py-2 rounded-xl text-xs md:text-sm font-bold whitespace-nowrap transition cursor-pointer ${
+                  procesoActivo === proc
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                }`}
+              >
+                {proc}
+              </button>
+            ))}
+          </div>
+
+          {/* MODULO 1: REPOSITORIO DE PARTITURAS */}
+          {moduloActivo === 'partituras' && (
+            <div className="space-y-6">
+              <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+                <input
+                  type="text"
+                  placeholder={`Buscar obra o compositor en ${procesoActivo}...`}
+                  value={busquedaPartitura}
+                  onChange={(e) => setBusquedaPartitura(e.target.value)}
+                  className={inputStyle}
+                />
+                {sesionAdmin && (
+                  <button
+                    onClick={() => setMostrarModalNuevaCarpeta(true)}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-3 rounded-xl transition cursor-pointer whitespace-nowrap"
                   >
-                    <div>
-                      <h4 className="font-bold text-sm">{obra.titulo}</h4>
-                      <p className="text-xs text-slate-500">{obra.compositor_arreglista}</p>
-                    </div>
-                    {sesionAdmin && (
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            abrirModalEditarCarpeta(obra);
-                          }}
-                          className="text-slate-400 hover:text-slate-700 p-1 text-xs"
-                        >
-                          ✏️
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            eliminarCarpetaObra(obra.id);
-                          }}
-                          className="text-rose-400 hover:text-rose-700 p-1 text-xs"
-                        >
-                          🗑️
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
+                    + Nueva Obra
+                  </button>
+                )}
+              </div>
 
-            {/* VISTA DETALLADA DE LA OBRA Y PARTICELAS */}
-            <div className="md:col-span-2">
-              {obraSeleccionadaDrive ? (
-                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-6">
-                  <div className="flex justify-between items-start border-b border-slate-100 pb-4">
-                    <div>
-                      <h2 className="text-2xl font-bold text-slate-900">{obraSeleccionadaDrive.titulo}</h2>
-                      <p className="text-sm text-slate-500">{obraSeleccionadaDrive.compositor_arreglista}</p>
-                      {obraSeleccionadaDrive.link_audio && (
-                        <a
-                          href={obraSeleccionadaDrive.link_audio}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 text-xs text-indigo-600 font-bold mt-2 hover:underline"
-                        >
-                          <span>🎧</span> Escuchar Referencia de Audio
-                        </a>
-                      )}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* LISTA DE OBRAS */}
+                <div className="md:col-span-1 space-y-3">
+                  <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Obras Disponibles</h3>
+                  {obrasFiltradas.length === 0 ? (
+                    <div className="p-8 text-center bg-white rounded-2xl border border-slate-200 text-slate-400 text-sm">
+                      No hay obras registradas para este proceso.
                     </div>
-                    {sesionAdmin && (
-                      <button
-                        onClick={() => setMostrarModalSubirArchivos(true)}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition cursor-pointer"
+                  ) : (
+                    obrasFiltradas.map((obra) => (
+                      <div
+                        key={obra.id}
+                        onClick={() => setObraSeleccionadaDrive(obra)}
+                        className={`p-4 rounded-2xl border transition cursor-pointer flex justify-between items-center ${
+                          obraSeleccionadaDrive?.id === obra.id
+                            ? 'bg-indigo-50/60 border-indigo-200 text-indigo-900 shadow-xs'
+                            : 'bg-white border-slate-200 hover:border-slate-300 text-slate-800'
+                        }`}
                       >
-                        + Subir PDF
-                      </button>
-                    )}
-                  </div>
+                        <div>
+                          <h4 className="font-bold text-sm">{obra.titulo}</h4>
+                          <p className="text-xs text-slate-500">{obra.compositor_arreglista}</p>
+                        </div>
+                        {sesionAdmin && (
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                abrirModalEditarCarpeta(obra);
+                              }}
+                              className="text-slate-400 hover:text-slate-700 p-1 text-xs"
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                eliminarCarpetaObra(obra.id);
+                              }}
+                              className="text-rose-400 hover:text-rose-700 p-1 text-xs"
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
 
-                  <div className="space-y-3">
-                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Particelas / PDF</h4>
-                    {particelas.filter((p) => p.obra_id === obraSeleccionadaDrive.id).length === 0 ? (
-                      <p className="text-xs text-slate-400 italic">No hay archivos PDF adjuntos en esta obra.</p>
-                    ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {particelas
-                          .filter((p) => p.obra_id === obraSeleccionadaDrive.id)
-                          .map((p) => (
+                {/* VISTA DETALLADA DE LA OBRA Y PARTICELAS */}
+                <div className="md:col-span-2">
+                  {obraSeleccionadaDrive ? (
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-6">
+                      <div className="flex justify-between items-start border-b border-slate-100 pb-4">
+                        <div>
+                          <h2 className="text-2xl font-bold text-slate-900">{obraSeleccionadaDrive.titulo}</h2>
+                          <p className="text-sm text-slate-500">{obraSeleccionadaDrive.compositor_arreglista}</p>
+                          {obraSeleccionadaDrive.link_audio && (
                             <a
-                              key={p.id}
-                              href={p.url_pdf}
+                              href={obraSeleccionadaDrive.link_audio}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="p-3 bg-slate-50 hover:bg-indigo-50/40 border border-slate-200 rounded-xl flex items-center justify-between text-xs font-bold text-slate-700 hover:text-indigo-900 transition"
+                              className="inline-flex items-center gap-1.5 text-xs text-indigo-600 font-bold mt-2 hover:underline"
                             >
-                              <span className="truncate pr-2">📄 {p.instrumento}</span>
-                              <span className="text-[10px] text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md">Abrir</span>
+                              <span>🎧</span> Escuchar Referencia de Audio
                             </a>
-                          ))}
+                          )}
+                        </div>
+                        {sesionAdmin && (
+                          <button
+                            onClick={() => setMostrarModalSubirArchivos(true)}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition cursor-pointer"
+                          >
+                            + Subir PDF
+                          </button>
+                        )}
                       </div>
-                    )}
-                  </div>
+
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Particelas / PDF</h4>
+                        {particelas.filter((p) => p.obra_id === obraSeleccionadaDrive.id).length === 0 ? (
+                          <p className="text-xs text-slate-400 italic">No hay archivos PDF adjuntos en esta obra.</p>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {particelas
+                              .filter((p) => p.obra_id === obraSeleccionadaDrive.id)
+                              .map((p) => (
+                                <a
+                                  key={p.id}
+                                  href={p.url_pdf}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="p-3 bg-slate-50 hover:bg-indigo-50/40 border border-slate-200 rounded-xl flex items-center justify-between text-xs font-bold text-slate-700 hover:text-indigo-900 transition"
+                                >
+                                  <span className="truncate pr-2">📄 {p.instrumento}</span>
+                                  <span className="text-[10px] text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md">Abrir</span>
+                                </a>
+                              ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-white p-12 text-center rounded-2xl border border-slate-200 text-slate-400 space-y-2">
+                      <span className="text-3xl block">🎼</span>
+                      <p className="text-sm font-medium">Selecciona una obra de la izquierda para ver e imprimir sus particelas.</p>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="bg-white p-12 text-center rounded-2xl border border-slate-200 text-slate-400 space-y-2">
-                  <span className="text-3xl block">🎼</span>
-                  <p className="text-sm font-medium">Selecciona una obra de la izquierda para ver e imprimir sus particelas.</p>
-                </div>
-              )}
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* MODULO 2: GESTIÓN DE INTEGRANTES */}
-      {moduloActivo === 'integrantes' && (
-        <div className="space-y-4">
-          <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-            <input
-              type="text"
-              placeholder={`Buscar integrante en ${procesoActivo}...`}
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              className={inputStyle}
-            />
-            {sesionAdmin && (
-              <button
-                onClick={() => setMostrarModalNuevoIntegranteAdmin(true)}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-3 rounded-xl transition cursor-pointer whitespace-nowrap"
-              >
-                + Registrar Integrante
-              </button>
-            )}
-          </div>
-
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-x-auto">
-            <table className="w-full text-left text-xs md:text-sm border-collapse">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider">
-                  <th className="p-4">Nombre</th>
-                  <th className="p-4">Documento</th>
-                  <th className="p-4">Instrumento</th>
-                  <th className="p-4">Origen Instrumento</th>
-                  <th className="p-4">Marca / Serie</th>
-                  {sesionAdmin && <th className="p-4 text-right">Acciones</th>}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {integrantesFiltrados.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="p-8 text-center text-slate-400">
-                      No hay integrantes activos en {procesoActivo}.
-                    </td>
-                  </tr>
-                ) : (
-                  integrantesFiltrados.map((item) => (
-                    <tr key={item.idProceso} className="hover:bg-slate-50/80 transition">
-                      <td className="p-4 font-bold text-slate-900">{item.nombre || 'Sin nombre'}</td>
-                      <td className="p-4 font-mono text-slate-600">{item.tipo_documento} {item.documento}</td>
-                      <td className="p-4 font-medium text-indigo-600">{item.instrumento}</td>
-                      <td className="p-4 text-slate-600">{item.origen_instrumento}</td>
-                      <td className="p-4 text-slate-500">{item.marca_serie}</td>
-                      {sesionAdmin && (
-                        <td className="p-4 text-right space-x-2">
-                          <button
-                            onClick={() => abrirModalEditarIntegrante(item)}
-                            className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2.5 py-1.5 rounded-lg text-xs transition cursor-pointer"
-                          >
-                            ✏️ Editar
-                          </button>
-                          <button
-                            onClick={() => eliminarProcesoIntegrante(item.idProceso)}
-                            className="bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold px-2.5 py-1.5 rounded-lg text-xs transition cursor-pointer"
-                          >
-                            🗑️
-                          </button>
-                        </td>
-                      )}
-                    </tr>
-                  ))
+          {/* MODULO 2: GESTIÓN DE INTEGRANTES */}
+          {moduloActivo === 'integrantes' && (
+            <div className="space-y-4">
+              <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+                <input
+                  type="text"
+                  placeholder={`Buscar integrante en ${procesoActivo}...`}
+                  value={busqueda}
+                  onChange={(e) => setBusqueda(e.target.value)}
+                  className={inputStyle}
+                />
+                {sesionAdmin && (
+                  <button
+                    onClick={() => setMostrarModalNuevoIntegranteAdmin(true)}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-3 rounded-xl transition cursor-pointer whitespace-nowrap"
+                  >
+                    + Registrar Integrante
+                  </button>
                 )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+              </div>
 
-      {/* MODULO 3: SOLICITUDES PENDIENTES (ADMIN) */}
-      {moduloActivo === 'pendientes' && sesionAdmin && (
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-          <h2 className="text-xl font-bold text-slate-900">Solicitudes de Inscripción Pendientes</h2>
-          <div className="divide-y divide-slate-100">
-            {pendientesList.length === 0 ? (
-              <p className="text-sm text-slate-400 py-4">No hay solicitudes pendientes por revisar.</p>
-            ) : (
-              pendientesList.map((p) => {
-                const info = integrantes.find((i) => i.documento === p.documento);
-                return (
-                  <div key={p.id} className="py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    <div>
-                      <h4 className="font-bold text-slate-900 text-base">{info?.nombre || 'Solicitante'}</h4>
-                      <p className="text-xs text-slate-500">
-                        Doc: {p.documento} | Proceso: <strong className="text-slate-800">{p.proceso}</strong> | Instrumento: <strong className="text-indigo-600">{p.instrumento}</strong>
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => aprobarSolicitud(p.id)}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition cursor-pointer"
-                      >
-                        ✓ Aprobar
-                      </button>
-                      <button
-                        onClick={() => eliminarProcesoIntegrante(p.id)}
-                        className="bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs px-3 py-2 rounded-xl transition cursor-pointer"
-                      >
-                        ✕ Rechazar
-                      </button>
-                    </div>
-                  </div>
-                );
-              })
-            )}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-x-auto">
+                <table className="w-full text-left text-xs md:text-sm border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider">
+                      <th className="p-4">Nombre</th>
+                      <th className="p-4">Documento</th>
+                      <th className="p-4">Instrumento</th>
+                      <th className="p-4">Origen Instrumento</th>
+                      <th className="p-4">Marca / Serie</th>
+                      {sesionAdmin && <th className="p-4 text-right">Acciones</th>}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {integrantesFiltrados.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="p-8 text-center text-slate-400">
+                          No hay integrantes activos en {procesoActivo}.
+                        </td>
+                      </tr>
+                    ) : (
+                      integrantesFiltrados.map((item) => (
+                        <tr key={item.idProceso} className="hover:bg-slate-50/80 transition">
+                          <td className="p-4 font-bold text-slate-900">{item.nombre || 'Sin nombre'}</td>
+                          <td className="p-4 font-mono text-slate-600">{item.tipo_documento} {item.documento}</td>
+                          <td className="p-4 font-medium text-indigo-600">{item.instrumento}</td>
+                          <td className="p-4 text-slate-600">{item.origen_instrumento}</td>
+                          <td className="p-4 text-slate-500">{item.marca_serie}</td>
+                          {sesionAdmin && (
+                            <td className="p-4 text-right space-x-2">
+                              <button
+                                onClick={() => abrirModalEditarIntegrante(item)}
+                                className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2.5 py-1.5 rounded-lg text-xs transition cursor-pointer"
+                              >
+                                ✏️ Editar
+                              </button>
+                              <button
+                                onClick={() => eliminarProcesoIntegrante(item.idProceso)}
+                                className="bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold px-2.5 py-1.5 rounded-lg text-xs transition cursor-pointer"
+                              >
+                                🗑️
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* MODULO 3: SOLICITUDES PENDIENTES (ADMIN) */}
+          {moduloActivo === 'pendientes' && sesionAdmin && (
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+              <h2 className="text-xl font-bold text-slate-900">Solicitudes de Inscripción Pendientes</h2>
+              <div className="divide-y divide-slate-100">
+                {pendientesList.length === 0 ? (
+                  <p className="text-sm text-slate-400 py-4">No hay solicitudes pendientes por revisar.</p>
+                ) : (
+                  pendientesList.map((p) => {
+                    const info = integrantes.find((i) => i.documento === p.documento);
+                    return (
+                      <div key={p.id} className="py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div>
+                          <h4 className="font-bold text-slate-900 text-base">{info?.nombre || 'Solicitante'}</h4>
+                          <p className="text-xs text-slate-500">
+                            Doc: {p.documento} | Proceso: <strong className="text-slate-800">{p.proceso}</strong> | Instrumento: <strong className="text-indigo-600">{p.instrumento}</strong>
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => aprobarSolicitud(p.id)}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition cursor-pointer"
+                          >
+                            ✓ Aprobar
+                          </button>
+                          <button
+                            onClick={() => eliminarProcesoIntegrante(p.id)}
+                            className="bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs px-3 py-2 rounded-xl transition cursor-pointer"
+                          >
+                            ✕ Rechazar
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        /* VISTA PÚBLICA (SOLO MUESTRA BIENVENIDA) */
+        <div className="bg-white p-10 md:p-16 rounded-3xl border border-slate-200 shadow-xs text-center max-w-2xl mx-auto my-12 space-y-6">
+          <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center mx-auto text-3xl shadow-xs">
+            🎼
+          </div>
+          <div>
+            <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Bienvenido a la Plataforma CODART</h2>
+            <p className="text-sm text-slate-500 mt-2 max-w-md mx-auto">
+              Accede a nuestro repositorio de partituras e información institucional. Selecciona una de las opciones superiores para continuar.
+            </p>
           </div>
         </div>
       )}
