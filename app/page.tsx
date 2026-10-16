@@ -234,12 +234,7 @@ export default function Home() {
     return !isNaN(num) && num > 0 && num < 18;
   };
 
-  const esAcudienteObligatorio = (proceso: string, valorEdad: string | number) => {
-    if (proceso === 'Proyecto de Música Escolar') return false;
-    return esMenorDeEdad(valorEdad);
-  };
-
-  // INSCRIPCIÓN PÚBLICA
+  // INSCRIPCIÓN PÚBLICA (SOPORTA MÚLTIPLES PROGRAMAS POR DOCUMENTO)
   const handleSubmitInscripcion = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nombre.trim() || !documento.trim() || !instrumento.trim()) {
@@ -264,7 +259,7 @@ export default function Home() {
       }
     ], { onConflict: 'documento' });
 
-    const { error: errorProc } = await supabase.from('integrante_procesos').insert([
+    const { error: errorProc } = await supabase.from('integrante_procesos').upsert([
       {
         documento: docLimpio,
         proceso: procesoInscripcion,
@@ -273,7 +268,7 @@ export default function Home() {
         marca_serie: marcaSerie.trim() || 'No especificada',
         estado_registro: 'Pendiente'
       }
-    ]);
+    ], { onConflict: 'documento,proceso' });
 
     if (errorProc) {
       alert('Error al inscribirse en el proceso: ' + errorProc.message);
@@ -295,13 +290,15 @@ export default function Home() {
     setRegistroExitoso(true);
   };
 
-  // APROBAR SOLICITUD PENDIENTE (ADMIN)
+  // APROBAR UNA SOLICITUD PENDIENTE INDIVIDUAL (ADMIN)
   const aprobarSolicitud = async (idProceso: string) => {
     if (!sesionAdmin) return;
+    const idLimpio = String(idProceso).trim();
+
     const { error } = await supabase
       .from('integrante_procesos')
       .update({ estado_registro: 'Aprobado' })
-      .eq('id', idProceso);
+      .eq('id', idLimpio);
 
     if (error) {
       alert('Error al aprobar: ' + error.message);
@@ -312,7 +309,7 @@ export default function Home() {
     alert('¡Proceso e instrumento aprobado con éxito!');
   };
 
-  // REGISTRO DIRECTO DESDE ADMIN
+  // REGISTRO DIRECTO DESDE ADMIN (SOPORTA MÚLTIPLES PROGRAMAS POR DOCUMENTO)
   const handleRegistroAdminDirecto = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!sesionAdmin) return;
@@ -338,7 +335,7 @@ export default function Home() {
       }
     ], { onConflict: 'documento' });
 
-    const { error } = await supabase.from('integrante_procesos').insert([
+    const { error } = await supabase.from('integrante_procesos').upsert([
       {
         documento: docLimpio,
         proceso: procesoActivo,
@@ -347,7 +344,7 @@ export default function Home() {
         marca_serie: marcaNewAdmin.trim() || 'No especificada',
         estado_registro: 'Aprobado',
       },
-    ]);
+    ], { onConflict: 'documento,proceso' });
 
     if (error) {
       alert('Error al registrar en el proceso: ' + error.message);
@@ -422,12 +419,24 @@ export default function Home() {
     alert('¡Información actualizada con éxito!');
   };
 
-  // ELIMINAR PROCESO
+  // ELIMINAR O RECHAZAR UNA SOLICITUD/PROCESO DE FORMA INDEPENDIENTE
   const eliminarProcesoIntegrante = async (idProceso: string) => {
     if (!sesionAdmin) return;
-    const confirmar = window.confirm('¿Deseas retirar a este integrante de este proceso?');
+    const idLimpio = String(idProceso).trim();
+
+    const confirmar = window.confirm('¿Deseas retirar esta solicitud o instrumento específico?');
     if (!confirmar) return;
-    await supabase.from('integrante_procesos').delete().eq('id', idProceso);
+    
+    const { error } = await supabase
+      .from('integrante_procesos')
+      .delete()
+      .eq('id', idLimpio);
+
+    if (error) {
+      alert('Error al eliminar: ' + error.message);
+      return;
+    }
+
     cargarDatos();
   };
 
@@ -566,12 +575,11 @@ export default function Home() {
   const inputStyle = 'w-full bg-slate-50 p-3 rounded-xl border border-slate-200 text-slate-800 outline-none focus:border-blue-600 focus:bg-white transition text-sm';
   const appUrl = typeof window !== 'undefined' ? window.location.href : 'https://codart-gestion.vercel.app';
   const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(appUrl)}`;
-  const haySesion = sesionAdmin || sesionIntegrante;
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-800 p-4 md:p-8">
       {/* ENCABEZADO */}
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
         <div className="flex items-center gap-4">
           <img src="/logo.jpg" alt="Logo CODART" className="w-20 h-20 md:w-24 md:h-24 object-contain rounded-xl" />
           <div>
@@ -595,18 +603,324 @@ export default function Home() {
             <div className="flex items-center gap-2 flex-wrap">
               <button onClick={() => setMostrarModalInscripcion(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs md:text-sm font-bold px-4 py-2.5 rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5"><span>📝</span> Inscripción</button>
               <button onClick={() => setMostrarQR(true)} className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs md:text-sm font-bold px-3 py-2.5 rounded-xl border border-slate-200 transition cursor-pointer flex items-center gap-1.5"><span>🔗</span> Código QR</button>
-              <button onClick={() => setMostrarModalIntegrante(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs md:text-sm font-bold px-3 py-2.5 rounded-xl shadow-sm transition cursor-pointer flex items-center gap-1.5"><span>🎵</span> Iniciar sesión estudiantes</button>
-              <button onClick={() => setMostrarModalAdmin(true)} className="bg-slate-800 hover:bg-slate-900 text-white text-xs md:text-sm font-bold px-3 py-2.5 rounded-xl shadow-sm transition cursor-pointer flex items-center gap-1.5"><span>🔐</span> Acceso admin</button>
+              <button onClick={() => setMostrarModalIntegrante(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs md:text-sm font-bold px-3 py-2.5 rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5"><span>🎵</span> Iniciar sesión estudiantes</button>
+              <button onClick={() => setMostrarModalAdmin(true)} className="bg-slate-800 hover:bg-slate-900 text-white text-xs md:text-sm font-bold px-3 py-2.5 rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5"><span>🔐</span> Acceso admin</button>
             </div>
           )}
         </div>
       </div>
 
+      {/* MENÚ DE NAVEGACIÓN PRINCIPAL */}
+      <div className="flex border-b border-slate-200 mb-6 gap-2">
+        <button
+          onClick={() => setModuloActivo('partituras')}
+          className={`pb-3 px-4 text-sm font-bold transition cursor-pointer border-b-2 ${
+            moduloActivo === 'partituras'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          📚 Repositorio de Partituras
+        </button>
+        <button
+          onClick={() => setModuloActivo('integrantes')}
+          className={`pb-3 px-4 text-sm font-bold transition cursor-pointer border-b-2 ${
+            moduloActivo === 'integrantes'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          👥 Gestión de Integrantes
+        </button>
+        {sesionAdmin && (
+          <button
+            onClick={() => setModuloActivo('pendientes')}
+            className={`pb-3 px-4 text-sm font-bold transition cursor-pointer border-b-2 flex items-center gap-2 ${
+              moduloActivo === 'pendientes'
+                ? 'border-amber-500 text-amber-600'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <span>⏳ Solicitudes Pendientes</span>
+            {pendientesList.length > 0 && (
+              <span className="bg-amber-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">
+                {pendientesList.length}
+              </span>
+            )}
+          </button>
+        )}
+      </div>
+
+      {/* SELECCIÓN DE PROGRAMA / PROCESO */}
+      <div className="flex gap-2 overflow-x-auto pb-4 mb-6 scrollbar-none">
+        {['Banda Filarmónica', 'Banda de Marcha', 'Prebanda', 'Proyecto de Música Escolar'].map((proc) => (
+          <button
+            key={proc}
+            onClick={() => setProcesoActivo(proc)}
+            className={`px-4 py-2 rounded-xl text-xs md:text-sm font-bold whitespace-nowrap transition cursor-pointer ${
+              procesoActivo === proc
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+            }`}
+          >
+            {proc}
+          </button>
+        ))}
+      </div>
+
+      {/* MODULO 1: REPOSITORIO DE PARTITURAS */}
+      {moduloActivo === 'partituras' && (
+        <div className="space-y-6">
+          <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+            <input
+              type="text"
+              placeholder={`Buscar obra o compositor en ${procesoActivo}...`}
+              value={busquedaPartitura}
+              onChange={(e) => setBusquedaPartitura(e.target.value)}
+              className={inputStyle}
+            />
+            {sesionAdmin && (
+              <button
+                onClick={() => setMostrarModalNuevaCarpeta(true)}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-3 rounded-xl transition cursor-pointer whitespace-nowrap"
+              >
+                + Nueva Obra
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* LISTA DE OBRAS */}
+            <div className="md:col-span-1 space-y-3">
+              <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Obras Disponibles</h3>
+              {obrasFiltradas.length === 0 ? (
+                <div className="p-8 text-center bg-white rounded-2xl border border-slate-200 text-slate-400 text-sm">
+                  No hay obras registradas para este proceso.
+                </div>
+              ) : (
+                obrasFiltradas.map((obra) => (
+                  <div
+                    key={obra.id}
+                    onClick={() => setObraSeleccionadaDrive(obra)}
+                    className={`p-4 rounded-2xl border transition cursor-pointer flex justify-between items-center ${
+                      obraSeleccionadaDrive?.id === obra.id
+                        ? 'bg-indigo-50/60 border-indigo-200 text-indigo-900 shadow-xs'
+                        : 'bg-white border-slate-200 hover:border-slate-300 text-slate-800'
+                    }`}
+                  >
+                    <div>
+                      <h4 className="font-bold text-sm">{obra.titulo}</h4>
+                      <p className="text-xs text-slate-500">{obra.compositor_arreglista}</p>
+                    </div>
+                    {sesionAdmin && (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            abrirModalEditarCarpeta(obra);
+                          }}
+                          className="text-slate-400 hover:text-slate-700 p-1 text-xs"
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            eliminarCarpetaObra(obra.id);
+                          }}
+                          className="text-rose-400 hover:text-rose-700 p-1 text-xs"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* VISTA DETALLADA DE LA OBRA Y PARTICELAS */}
+            <div className="md:col-span-2">
+              {obraSeleccionadaDrive ? (
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-6">
+                  <div className="flex justify-between items-start border-b border-slate-100 pb-4">
+                    <div>
+                      <h2 className="text-2xl font-bold text-slate-900">{obraSeleccionadaDrive.titulo}</h2>
+                      <p className="text-sm text-slate-500">{obraSeleccionadaDrive.compositor_arreglista}</p>
+                      {obraSeleccionadaDrive.link_audio && (
+                        <a
+                          href={obraSeleccionadaDrive.link_audio}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs text-indigo-600 font-bold mt-2 hover:underline"
+                        >
+                          <span>🎧</span> Escuchar Referencia de Audio
+                        </a>
+                      )}
+                    </div>
+                    {sesionAdmin && (
+                      <button
+                        onClick={() => setMostrarModalSubirArchivos(true)}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition cursor-pointer"
+                      >
+                        + Subir PDF
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Particelas / PDF</h4>
+                    {particelas.filter((p) => p.obra_id === obraSeleccionadaDrive.id).length === 0 ? (
+                      <p className="text-xs text-slate-400 italic">No hay archivos PDF adjuntos en esta obra.</p>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {particelas
+                          .filter((p) => p.obra_id === obraSeleccionadaDrive.id)
+                          .map((p) => (
+                            <a
+                              key={p.id}
+                              href={p.url_pdf}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-3 bg-slate-50 hover:bg-indigo-50/40 border border-slate-200 rounded-xl flex items-center justify-between text-xs font-bold text-slate-700 hover:text-indigo-900 transition"
+                            >
+                              <span className="truncate pr-2">📄 {p.instrumento}</span>
+                              <span className="text-[10px] text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md">Abrir</span>
+                            </a>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white p-12 text-center rounded-2xl border border-slate-200 text-slate-400 space-y-2">
+                  <span className="text-3xl block">🎼</span>
+                  <p className="text-sm font-medium">Selecciona una obra de la izquierda para ver e imprimir sus particelas.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODULO 2: GESTIÓN DE INTEGRANTES */}
+      {moduloActivo === 'integrantes' && (
+        <div className="space-y-4">
+          <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+            <input
+              type="text"
+              placeholder={`Buscar integrante en ${procesoActivo}...`}
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              className={inputStyle}
+            />
+            {sesionAdmin && (
+              <button
+                onClick={() => setMostrarModalNuevoIntegranteAdmin(true)}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-3 rounded-xl transition cursor-pointer whitespace-nowrap"
+              >
+                + Registrar Integrante
+              </button>
+            )}
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-x-auto">
+            <table className="w-full text-left text-xs md:text-sm border-collapse">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider">
+                  <th className="p-4">Nombre</th>
+                  <th className="p-4">Documento</th>
+                  <th className="p-4">Instrumento</th>
+                  <th className="p-4">Origen Instrumento</th>
+                  <th className="p-4">Marca / Serie</th>
+                  {sesionAdmin && <th className="p-4 text-right">Acciones</th>}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {integrantesFiltrados.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-slate-400">
+                      No hay integrantes activos en {procesoActivo}.
+                    </td>
+                  </tr>
+                ) : (
+                  integrantesFiltrados.map((item) => (
+                    <tr key={item.idProceso} className="hover:bg-slate-50/80 transition">
+                      <td className="p-4 font-bold text-slate-900">{item.nombre || 'Sin nombre'}</td>
+                      <td className="p-4 font-mono text-slate-600">{item.tipo_documento} {item.documento}</td>
+                      <td className="p-4 font-medium text-indigo-600">{item.instrumento}</td>
+                      <td className="p-4 text-slate-600">{item.origen_instrumento}</td>
+                      <td className="p-4 text-slate-500">{item.marca_serie}</td>
+                      {sesionAdmin && (
+                        <td className="p-4 text-right space-x-2">
+                          <button
+                            onClick={() => abrirModalEditarIntegrante(item)}
+                            className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2.5 py-1.5 rounded-lg text-xs transition cursor-pointer"
+                          >
+                            ✏️ Editar
+                          </button>
+                          <button
+                            onClick={() => eliminarProcesoIntegrante(item.idProceso)}
+                            className="bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold px-2.5 py-1.5 rounded-lg text-xs transition cursor-pointer"
+                          >
+                            🗑️
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* MODULO 3: SOLICITUDES PENDIENTES (ADMIN) */}
+      {moduloActivo === 'pendientes' && sesionAdmin && (
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+          <h2 className="text-xl font-bold text-slate-900">Solicitudes de Inscripción Pendientes</h2>
+          <div className="divide-y divide-slate-100">
+            {pendientesList.length === 0 ? (
+              <p className="text-sm text-slate-400 py-4">No hay solicitudes pendientes por revisar.</p>
+            ) : (
+              pendientesList.map((p) => {
+                const info = integrantes.find((i) => i.documento === p.documento);
+                return (
+                  <div key={p.id} className="py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                      <h4 className="font-bold text-slate-900 text-base">{info?.nombre || 'Solicitante'}</h4>
+                      <p className="text-xs text-slate-500">
+                        Doc: {p.documento} | Proceso: <strong className="text-slate-800">{p.proceso}</strong> | Instrumento: <strong className="text-indigo-600">{p.instrumento}</strong>
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => aprobarSolicitud(p.id)}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition cursor-pointer"
+                      >
+                        ✓ Aprobar
+                      </button>
+                      <button
+                        onClick={() => eliminarProcesoIntegrante(p.id)}
+                        className="bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs px-3 py-2 rounded-xl transition cursor-pointer"
+                      >
+                        ✕ Rechazar
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+
       {/* MODAL QR */}
       {mostrarQR && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-sm text-center relative shadow-2xl space-y-4">
-            <button onClick={() => setMostrarQR(false)} className="absolute top-4 right-4 text-slate-400 font-bold">✕</button>
+            <button onClick={() => setMostrarQR(false)} className="absolute top-4 right-4 text-slate-400 font-bold cursor-pointer">✕</button>
             <h2 className="text-xl font-bold text-slate-900">Código QR de la Plataforma</h2>
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 inline-block">
               <img src={qrApiUrl} alt="QR CODART" className="w-48 h-48 mx-auto rounded-xl shadow-xs" />
@@ -620,7 +934,7 @@ export default function Home() {
       {mostrarModalIntegrante && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-md relative shadow-2xl space-y-4">
-            <button onClick={() => setMostrarModalIntegrante(false)} className="absolute top-4 right-4 text-slate-400 font-bold">✕</button>
+            <button onClick={() => setMostrarModalIntegrante(false)} className="absolute top-4 right-4 text-slate-400 font-bold cursor-pointer">✕</button>
             <h2 className="text-xl font-bold text-slate-900">🎵 Acceso para Estudiantes</h2>
             <p className="text-xs text-slate-500">Ingresa tu número de documento y la contraseña universal <strong>codart</strong>.</p>
             <form onSubmit={handleLoginIntegrante} className="space-y-3">
@@ -636,12 +950,12 @@ export default function Home() {
       {mostrarModalAdmin && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white border border-slate-200 p-6 rounded-2xl w-full max-w-md relative shadow-xl">
-            <button onClick={() => setMostrarModalAdmin(false)} className="absolute top-4 right-4 text-slate-400 font-bold">✕</button>
+            <button onClick={() => setMostrarModalAdmin(false)} className="absolute top-4 right-4 text-slate-400 font-bold cursor-pointer">✕</button>
             <h2 className="text-xl font-bold text-slate-900 mb-4">Acceso Administrador</h2>
             <form onSubmit={handleLoginAdmin} className="space-y-4">
               <input type="email" placeholder="Correo electrónico" value={emailAdmin} onChange={(e) => setEmailAdmin(e.target.value)} className={inputStyle} required />
               <input type="password" placeholder="Contraseña" value={passwordAdmin} onChange={(e) => setPasswordAdmin(e.target.value)} className={inputStyle} required />
-              <button type="submit" className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold p-3 rounded-xl text-sm">Ingresar</button>
+              <button type="submit" className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold p-3 rounded-xl text-sm transition cursor-pointer">Ingresar</button>
             </form>
           </div>
         </div>
@@ -651,9 +965,9 @@ export default function Home() {
       {mostrarModalInscripcion && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
           <div className="bg-white border border-slate-200 p-6 md:p-8 rounded-3xl w-full max-w-lg relative shadow-2xl my-8">
-            <button onClick={() => setMostrarModalInscripcion(false)} className="absolute top-4 right-4 text-slate-400 font-bold">✕</button>
+            <button onClick={() => setMostrarModalInscripcion(false)} className="absolute top-4 right-4 text-slate-400 font-bold cursor-pointer">✕</button>
             <h2 className="text-2xl font-bold text-slate-900 mb-1">Formulario de Inscripción</h2>
-            <p className="text-xs text-slate-500 mb-6">Inscríbete en tus procesos o añade un nuevo instrumento.</p>
+            <p className="text-xs text-slate-500 mb-6">Inscríbete en un programa o añade un nuevo instrumento a tu registro.</p>
 
             <form onSubmit={handleSubmitInscripcion} className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
               <div>
@@ -690,348 +1004,172 @@ export default function Home() {
               {esMenorDeEdad(edad) && (
                 <div className="bg-amber-50/70 border border-amber-200 p-4 rounded-xl space-y-3">
                   <span className="text-xs font-bold text-amber-800 block">👨‍👩‍👧 Datos del Acudiente</span>
-                  <input type="text" placeholder="Nombre completo acudiente" value={nombreAcudiente} onChange={(e) => setNombreAcudiente(e.target.value)} className="w-full bg-white p-2.5 rounded-lg border border-amber-200 text-xs" required={esAcudienteObligatorio(procesoInscripcion, edad)} />
+                  <input type="text" placeholder="Nombre del acudiente" value={nombreAcudiente} onChange={(e) => setNombreAcudiente(e.target.value)} className="w-full bg-white p-2.5 rounded-lg border border-amber-200 text-sm" />
                   <div className="grid grid-cols-2 gap-2">
-                    <input type="text" placeholder="Cédula" value={documentoAcudiente} onChange={(e) => setDocumentoAcudiente(e.target.value)} className="w-full bg-white p-2.5 rounded-lg border border-amber-200 text-xs" />
-                    <input type="tel" placeholder="Celular" value={celularAcudiente} onChange={(e) => setCelularAcudiente(e.target.value)} className="w-full bg-white p-2.5 rounded-lg border border-amber-200 text-xs" />
+                    <input type="text" placeholder="Documento acudiente" value={documentoAcudiente} onChange={(e) => setDocumentoAcudiente(e.target.value)} className="bg-white p-2.5 rounded-lg border border-amber-200 text-sm" />
+                    <input type="tel" placeholder="Celular acudiente" value={celularAcudiente} onChange={(e) => setCelularAcudiente(e.target.value)} className="bg-white p-2.5 rounded-lg border border-amber-200 text-sm" />
                   </div>
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                <input type="text" placeholder="Instrumento para este proceso" value={instrumento} onChange={(e) => setInstrumento(e.target.value)} className={inputStyle} required />
-                <select value={origenInstrumento} onChange={(e) => setOrigenInstrumento(e.target.value)} className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs font-semibold">
-                  <option value="Prestado (CODART)">🎵 Prestado (CODART)</option>
-                  <option value="Propio">⭐ Instrumento Propio</option>
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-700 block">Instrumento e Información</label>
+                <input type="text" placeholder="Instrumento (ej. Clarinete, Trompeta)" value={instrumento} onChange={(e) => setInstrumento(e.target.value)} className={inputStyle} required />
+                
+                <select value={origenInstrumento} onChange={(e) => setOrigenInstrumento(e.target.value)} className={inputStyle}>
+                  <option value="Prestado (CODART)">Prestado (CODART)</option>
+                  <option value="Propio">Propio</option>
                 </select>
+
+                <input type="text" placeholder="Marca / Número de serie" value={marcaSerie} onChange={(e) => setMarcaSerie(e.target.value)} className={inputStyle} />
               </div>
 
-              <input type="text" placeholder="Marca y Serie (opcional)" value={marcaSerie} onChange={(e) => setMarcaSerie(e.target.value)} className={inputStyle} />
-              
-              <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold text-sm transition cursor-pointer mt-2">Enviar Inscripción</button>
+              <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl text-sm transition cursor-pointer shadow-xs">
+                Enviar Formulario
+              </button>
             </form>
           </div>
         </div>
       )}
 
-      {/* MODAL NUEVO INTEGRANTE (ADMIN) */}
-      {mostrarModalNuevoIntegranteAdmin && sesionAdmin && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white border border-slate-200 p-6 md:p-8 rounded-3xl w-full max-w-lg relative shadow-2xl my-8">
-            <button onClick={() => setMostrarModalNuevoIntegranteAdmin(false)} className="absolute top-4 right-4 text-slate-400 font-bold">✕</button>
-            <h2 className="text-2xl font-bold text-slate-900 mb-1">➕ Registrar en {procesoActivo}</h2>
-            <form onSubmit={handleRegistroAdminDirecto} className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
-              <input type="text" placeholder="Nombre completo *" value={nombreNewAdmin} onChange={(e) => setNombreNewAdmin(e.target.value)} className={inputStyle} required />
-              <div className="grid grid-cols-3 gap-2">
-                <select value={tipoDocNewAdmin} onChange={(e) => setTipoDocNewAdmin(e.target.value)} className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-slate-800 font-semibold text-xs">
-                  <option value="C.C.">C.C.</option><option value="T.I.">T.I.</option><option value="R.C.">R.C.</option>
-                </select>
-                <input type="text" placeholder="Número documento *" value={docNewAdmin} onChange={(e) => setDocNewAdmin(e.target.value)} className="col-span-2 bg-slate-50 p-3 rounded-xl border border-slate-200 text-slate-800 text-sm" required />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <input type="number" placeholder="Edad" min="1" max="100" value={edadNewAdmin} onChange={(e) => setEdadNewAdmin(e.target.value)} className={inputStyle} />
-                <input type="tel" placeholder="Celular" value={celularNewAdmin} onChange={(e) => setCelularNewAdmin(e.target.value)} className={inputStyle} />
-              </div>
-              <input type="text" placeholder="Instrumento *" value={instrumentoNewAdmin} onChange={(e) => setInstrumentoNewAdmin(e.target.value)} className={inputStyle} required />
-              <select value={origenNewAdmin} onChange={(e) => setOrigenNewAdmin(e.target.value)} className={inputStyle}>
-                <option value="Prestado (CODART)">🎵 Prestado (CODART)</option>
-                <option value="Propio">⭐ Instrumento Propio</option>
-              </select>
-              <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold text-sm transition cursor-pointer">Guardar e Inscribir</button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL EDITAR INTEGRANTE (ADMIN) */}
-      {mostrarModalEditarIntegrante && integranteEditando && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white border border-slate-200 p-6 md:p-8 rounded-3xl w-full max-w-lg relative shadow-2xl my-8">
-            <button onClick={() => setMostrarModalEditarIntegrante(false)} className="absolute top-4 right-4 text-slate-400 font-bold">✕</button>
-            <h2 className="text-2xl font-bold text-slate-900 mb-1">✏️ Editar Datos del Músico</h2>
-            <form onSubmit={guardarEdicionIntegrante} className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
-              <div>
-                <label className="text-xs font-bold text-slate-700 mb-1 block">Proceso o Agrupación</label>
-                <select value={procesoEdit} onChange={(e) => setProcesoEdit(e.target.value)} className={inputStyle}>
-                  <option value="Banda Filarmónica">Banda Filarmónica</option>
-                  <option value="Banda de Marcha">Banda de Marcha</option>
-                  <option value="Prebanda">Prebanda</option>
-                  <option value="Proyecto de Música Escolar">Proyecto de Música Escolar</option>
-                </select>
-              </div>
-
-              <input type="text" placeholder="Nombre completo" value={nombreEdit} onChange={(e) => setNombreEdit(e.target.value)} className={inputStyle} required />
-
-              <div className="grid grid-cols-3 gap-2">
-                <select value={tipoDocumentoEdit} onChange={(e) => setTipoDocumentoEdit(e.target.value)} className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-slate-800 font-semibold text-xs">
-                  <option value="C.C.">C.C.</option><option value="T.I.">T.I.</option><option value="R.C.">R.C.</option><option value="C.E.">C.E.</option>
-                </select>
-                <input type="text" placeholder="Número documento" value={documentoEdit} onChange={(e) => setDocumentoEdit(e.target.value)} className="col-span-2 bg-slate-50 p-3 rounded-xl border border-slate-200 text-slate-800 text-sm" required />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <input type="number" placeholder="Edad" min="1" max="100" value={edadEdit} onChange={(e) => setEdadEdit(e.target.value)} className={inputStyle} />
-                <input type="tel" placeholder="Celular" value={celularEdit} onChange={(e) => setCelularEdit(e.target.value)} className={inputStyle} />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                <input type="text" placeholder="Instrumento" value={instrumentoEdit} onChange={(e) => setInstrumentoEdit(e.target.value)} className={inputStyle} required />
-                <select value={origenInstrumentoEdit} onChange={(e) => setOrigenInstrumentoEdit(e.target.value)} className={inputStyle}>
-                  <option value="Prestado (CODART)">🎵 Prestado (CODART)</option>
-                  <option value="Propio">⭐ Instrumento Propio</option>
-                </select>
-              </div>
-
-              <input type="text" placeholder="Marca y Serie" value={marcaSerieEdit} onChange={(e) => setMarcaSerieEdit(e.target.value)} className={inputStyle} />
-
-              <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold text-sm transition cursor-pointer">Guardar Cambios</button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL ÉXITO INSCRIPCIÓN */}
+      {/* MODAL CONFIRMACIÓN REGISTRO EXITOSO */}
       {registroExitoso && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white border border-slate-200 p-8 rounded-3xl w-full max-w-md text-center space-y-4 shadow-2xl">
-            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-3xl">✓</div>
-            <h2 className="text-2xl font-bold text-slate-900">¡Inscripción Recibida!</h2>
-            <p className="text-sm text-slate-600">Tu solicitud ha sido enviada y está pendiente de aprobación.</p>
-            <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl text-left space-y-1.5">
-              <p className="text-xs font-bold text-amber-900">⚠️ Credenciales de ingreso:</p>
-              <ul className="text-xs text-amber-900 font-semibold list-disc list-inside space-y-0.5">
-                <li>Usuario: Tu número de identificación.</li>
-                <li>Contraseña: <code className="bg-amber-100 px-1.5 py-0.5 rounded text-amber-950 font-mono">codart</code></li>
-              </ul>
-            </div>
-            <button onClick={() => setRegistroExitoso(false)} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl text-sm cursor-pointer">Entendido</button>
+          <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-sm text-center relative shadow-2xl space-y-4">
+            <span className="text-4xl block">🎉</span>
+            <h2 className="text-xl font-bold text-slate-900">¡Registro Recibido!</h2>
+            <p className="text-xs text-slate-500">Tu inscripción fue guardada correctamente y se encuentra pendiente de aprobación por el administrador.</p>
+            <button onClick={() => setRegistroExitoso(false)} className="w-full bg-slate-900 text-white font-bold py-2.5 rounded-xl text-xs transition cursor-pointer">
+              Entendido
+            </button>
           </div>
         </div>
       )}
 
-      {/* MODAL NUEVA CARPETA DRIVE */}
-      {mostrarModalNuevaCarpeta && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-md relative shadow-2xl">
-            <button onClick={() => setMostrarModalNuevaCarpeta(false)} className="absolute top-4 right-4 text-slate-400 font-bold">✕</button>
-            <h2 className="text-xl font-bold text-slate-900 mb-1">📁 Nueva Carpeta (Obra)</h2>
-            <form onSubmit={crearCarpetaObra} className="space-y-3">
-              <input type="text" placeholder="Título de la Obra *" value={tituloCarpeta} onChange={(e) => setTituloCarpeta(e.target.value)} className={inputStyle} required />
-              <input type="text" placeholder="Compositor" value={compositorCarpeta} onChange={(e) => setCompositorCarpeta(e.target.value)} className={inputStyle} />
-              <input type="url" placeholder="Enlace de Audio" value={linkAudioCarpeta} onChange={(e) => setLinkAudioCarpeta(e.target.value)} className={inputStyle} />
-              <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl text-sm cursor-pointer">Crear Carpeta</button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL EDITAR CARPETA */}
-      {mostrarModalEditarCarpeta && carpetaEditando && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-md relative shadow-2xl">
-            <button onClick={() => setMostrarModalEditarCarpeta(false)} className="absolute top-4 right-4 text-slate-400 font-bold">✕</button>
-            <h2 className="text-xl font-bold text-slate-900 mb-1">✏️ Editar Carpeta</h2>
-            <form onSubmit={guardarEdicionCarpeta} className="space-y-3">
-              <input type="text" value={tituloCarpetaEdit} onChange={(e) => setTituloCarpetaEdit(e.target.value)} className={inputStyle} required />
-              <input type="text" value={compositorCarpetaEdit} onChange={(e) => setCompositorCarpetaEdit(e.target.value)} className={inputStyle} />
-              <input type="url" value={linkAudioCarpetaEdit} onChange={(e) => setLinkAudioCarpetaEdit(e.target.value)} className={inputStyle} />
-              <button type="submit" className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl text-sm cursor-pointer">Guardar Cambios</button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL SUBIR ARCHIVOS */}
-      {mostrarModalSubirArchivos && obraSeleccionadaDrive && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-lg relative shadow-2xl">
-            <button onClick={() => setMostrarModalSubirArchivos(false)} className="absolute top-4 right-4 text-slate-400 font-bold">✕</button>
-            <h2 className="text-xl font-bold text-slate-900 mb-1">📤 Subir Partituras a "{obraSeleccionadaDrive.titulo}"</h2>
-            <form onSubmit={subirArchivosSeleccionados} className="space-y-4">
-              <input type="file" accept="application/pdf" multiple onChange={(e) => { if (e.target.files) setArchivosSeleccionados(Array.from(e.target.files)); }} className="w-full text-xs text-slate-500 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-blue-600 file:text-white cursor-pointer" />
-              <button type="submit" disabled={subiendoArchivos || archivosSeleccionados.length === 0} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm cursor-pointer">{subiendoArchivos ? 'Subiendo...' : 'Subir Archivos'}</button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* CONTENIDO PRINCIPAL */}
-      {haySesion ? (
-        <div className="space-y-6">
-          <div className="flex gap-2 mb-6 bg-slate-200/60 p-1.5 rounded-2xl max-w-xl mx-auto md:mx-0 flex-wrap">
-            <button onClick={() => setModuloActivo('partituras')} className={`flex-1 py-2.5 px-4 rounded-xl text-xs md:text-sm font-bold transition cursor-pointer text-center ${moduloActivo === 'partituras' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600'}`}><span>📂</span> Repositorio</button>
-            <button onClick={() => setModuloActivo('integrantes')} className={`flex-1 py-2.5 px-4 rounded-xl text-xs md:text-sm font-bold transition cursor-pointer text-center ${moduloActivo === 'integrantes' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600'}`}><span>👥</span> Integrantes</button>
-            {sesionAdmin && (
-              <button onClick={() => setModuloActivo('pendientes')} className={`flex-1 py-2.5 px-4 rounded-xl text-xs md:text-sm font-bold transition cursor-pointer text-center relative ${moduloActivo === 'pendientes' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600'}`}>
-                <span>⏳</span> Solicitudes {pendientesList.length > 0 && <span className="bg-rose-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">{pendientesList.length}</span>}
+      {/* MODAL REGISTRO DIRECTO ADMIN */}
+      {mostrarModalNuevoIntegranteAdmin && sesionAdmin && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-lg relative shadow-2xl my-8">
+            <button onClick={() => setMostrarModalNuevoIntegranteAdmin(false)} className="absolute top-4 right-4 text-slate-400 font-bold cursor-pointer">✕</button>
+            <h2 className="text-xl font-bold text-slate-900 mb-1">Inscribir en {procesoActivo}</h2>
+            <form onSubmit={handleRegistroAdminDirecto} className="space-y-3 mt-4">
+              <input type="text" placeholder="Nombre completo" value={nombreNewAdmin} onChange={(e) => setNombreNewAdmin(e.target.value)} className={inputStyle} required />
+              <div className="grid grid-cols-3 gap-2">
+                <select value={tipoDocNewAdmin} onChange={(e) => setTipoDocNewAdmin(e.target.value)} className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs font-bold">
+                  <option value="C.C.">C.C.</option><option value="T.I.">T.I.</option><option value="R.C.">R.C.</option><option value="C.E.">C.E.</option>
+                </select>
+                <input type="text" placeholder="Documento" value={docNewAdmin} onChange={(e) => setDocNewAdmin(e.target.value)} className="col-span-2 bg-slate-50 p-3 rounded-xl border border-slate-200 text-sm" required />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <input type="number" placeholder="Edad" value={edadNewAdmin} onChange={(e) => setEdadNewAdmin(e.target.value)} className={inputStyle} />
+                <input type="tel" placeholder="Celular" value={celularNewAdmin} onChange={(e) => setCelularNewAdmin(e.target.value)} className={inputStyle} />
+              </div>
+              <input type="text" placeholder="Instrumento" value={instrumentoNewAdmin} onChange={(e) => setInstrumentoNewAdmin(e.target.value)} className={inputStyle} required />
+              <select value={origenNewAdmin} onChange={(e) => setOrigenNewAdmin(e.target.value)} className={inputStyle}>
+                <option value="Prestado (CODART)">Prestado (CODART)</option>
+                <option value="Propio">Propio</option>
+              </select>
+              <input type="text" placeholder="Marca / Serie" value={marcaNewAdmin} onChange={(e) => setMarcaNewAdmin(e.target.value)} className={inputStyle} />
+              <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl text-sm transition cursor-pointer">
+                Registrar y Aprobar
               </button>
-            )}
+            </form>
           </div>
-
-          {moduloActivo !== 'pendientes' && (
-            <div className="flex gap-3 mb-6 flex-wrap">
-              {['Banda Filarmónica', 'Banda de Marcha', 'Prebanda', 'Proyecto de Música Escolar'].map((p) => (
-                <button key={p} onClick={() => { setProcesoActivo(p); setObraSeleccionadaDrive(null); }} className={`px-5 py-2.5 rounded-xl font-semibold text-xs md:text-sm transition cursor-pointer ${procesoActivo === p ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200'}`}>{p}</button>
-              ))}
-            </div>
-          )}
-
-          {moduloActivo === 'partituras' ? (
-            <div className="space-y-6">
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                  <h2 className="text-xl font-bold text-slate-900">📂 Repositorio — {procesoActivo}</h2>
-                  <p className="text-xs text-slate-500">{obraSeleccionadaDrive ? `Carpeta: "${obraSeleccionadaDrive.titulo}"` : 'Consulta y gestiona partituras.'}</p>
-                </div>
-                <div className="flex items-center gap-3 w-full md:w-auto flex-wrap">
-                  {!obraSeleccionadaDrive && <input type="text" placeholder="Buscar carpeta..." value={busquedaPartitura} onChange={(e) => setBusquedaPartitura(e.target.value)} className="bg-slate-50 px-3 py-2.5 rounded-xl border border-slate-200 text-xs outline-none" />}
-                  {sesionAdmin && !obraSeleccionadaDrive && <button onClick={() => setMostrarModalNuevaCarpeta(true)} className="bg-blue-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl cursor-pointer">📁+ Nueva Carpeta</button>}
-                  {obraSeleccionadaDrive && <button onClick={() => setObraSeleccionadaDrive(null)} className="bg-slate-100 text-slate-700 text-xs font-bold px-4 py-2.5 rounded-xl cursor-pointer">◀ Volver</button>}
-                </div>
-              </div>
-
-              {!obraSeleccionadaDrive ? (
-                obrasFiltradas.length === 0 ? (
-                  <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-400">No hay carpetas en {procesoActivo}</div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {obrasFiltradas.map((obra) => (
-                      <div key={obra.id} onClick={() => setObraSeleccionadaDrive(obra)} className="bg-white border border-slate-200 p-5 rounded-2xl cursor-pointer flex flex-col justify-between group">
-                        <div>
-                          <div className="flex justify-between items-start mb-3">
-                            <span className="text-3xl">📁</span>
-                            {sesionAdmin && (
-                              <div className="flex items-center gap-1">
-                                <button onClick={(e) => { e.stopPropagation(); abrirModalEditarCarpeta(obra); }} className="text-slate-400 hover:text-blue-600 font-bold p-1">✏️</button>
-                                <button onClick={(e) => { e.stopPropagation(); eliminarCarpetaObra(obra.id); }} className="text-slate-400 hover:text-rose-600 font-bold p-1">🗑️</button>
-                              </div>
-                            )}
-                          </div>
-                          <h3 className="font-bold text-slate-900 text-sm group-hover:text-blue-600 truncate">{obra.titulo}</h3>
-                          <p className="text-[11px] text-slate-500 truncate mt-0.5">{obra.compositor_arreglista || 'Sin compositor'}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )
-              ) : (
-                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6">
-                  <div className="flex justify-between items-center pb-4 border-b border-slate-100">
-                    <h3 className="text-lg font-bold text-slate-900">📂 {obraSeleccionadaDrive.titulo}</h3>
-                    {sesionAdmin && <button onClick={() => setMostrarModalSubirArchivos(true)} className="bg-emerald-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl cursor-pointer">📤 Subir PDFs</button>}
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                    {particelas.filter((p) => p.obra_id === obraSeleccionadaDrive.id).map((archivo) => (
-                      <div key={archivo.id} className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex justify-between items-center">
-                        <span className="text-xs font-bold text-slate-800 truncate">📄 {archivo.instrumento}</span>
-                        <a href={archivo.url_pdf} target="_blank" rel="noopener noreferrer" className="text-xs bg-white border border-slate-200 text-blue-700 font-bold px-3 py-1.5 rounded-lg">Ver PDF</a>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : moduloActivo === 'pendientes' && sesionAdmin ? (
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-              <h2 className="text-lg font-bold text-slate-900">⏳ Solicitudes Pendientes ({pendientesList.length})</h2>
-              {pendientesList.length === 0 ? (
-                <div className="text-center py-16 text-slate-400">No hay solicitudes pendientes</div>
-              ) : (
-                <div className="space-y-3">
-                  {pendientesList.map((sol) => {
-                    const persona = integrantes.find(i => i.documento && sol.documento && i.documento.toString().trim() === sol.documento.toString().trim());
-                    return (
-                      <div key={sol.id} className="bg-amber-50/50 border border-amber-200 rounded-2xl p-4 flex justify-between items-center flex-wrap gap-2">
-                        <div>
-                          <h3 className="font-bold text-slate-900">{persona?.nombre || sol.documento}</h3>
-                          <p className="text-xs text-slate-600">Doc: {sol.documento} | Proceso: <strong>{sol.proceso}</strong> | Instrumento: <strong className="text-blue-700">{sol.instrumento}</strong></p>
-                        </div>
-                        <div className="flex gap-2">
-                          <button onClick={() => aprobarSolicitud(sol.id)} className="bg-emerald-600 text-white text-xs font-bold px-4 py-2 rounded-xl cursor-pointer">✓ Aprobar</button>
-                          <button onClick={() => eliminarProcesoIntegrante(sol.id)} className="bg-rose-50 text-rose-600 text-xs font-bold px-3 py-2 rounded-xl cursor-pointer">🗑️</button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-              <div className="flex justify-between items-center">
-                <h2 className="text-lg font-bold text-slate-900">Integrantes Oficiales ({integrantesFiltrados.length}) <span className="text-xs font-normal text-slate-500">— {procesoActivo}</span></h2>
-                {sesionAdmin && <button onClick={() => setMostrarModalNuevoIntegranteAdmin(true)} className="bg-emerald-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl cursor-pointer">➕ Registrar en este Proceso</button>}
-              </div>
-
-              {sesionAdmin && <input type="text" placeholder="Buscar integrante..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} className="w-full bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-sm outline-none" />}
-
-              {/* PANEL DE DIAGNÓSTICO RÁPIDO PARA EL ADMIN */}
-              <div className="bg-slate-100 p-3 rounded-xl text-xs text-slate-600 flex justify-between items-center">
-                <span>📊 Diagnóstico: Total registros en tabla procesos: <strong>{procesosIntegrantes.length}</strong> | Aprobados para este proceso: <strong>{procesosEnProcesoActivo.length}</strong></span>
-                <button onClick={cargarDatos} className="bg-white px-2.5 py-1 rounded-md border border-slate-300 font-bold text-slate-700">🔄 Recargar</button>
-              </div>
-
-              <div className="space-y-3">
-                {integrantesFiltrados.length === 0 ? (
-                  <div className="text-center py-12 text-slate-400">No hay integrantes aprobados en {procesoActivo}. Revisa la pestaña de Solicitudes Pendientes para aprobarlos.</div>
-                ) : (
-                  integrantesFiltrados.map((item) => (
-                    <div key={item.idProceso} className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition hover:border-blue-300">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-bold text-slate-900 text-base">{item.nombre || 'Sin nombre en integrantes'}</h3>
-                          <span className="text-[11px] bg-slate-200/70 text-slate-700 px-2.5 py-0.5 rounded-full font-semibold">
-                            {item.tipo_documento || 'C.C.'} {item.documento}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center gap-3 flex-wrap text-xs text-slate-600 font-medium">
-                          <span className="text-blue-700 font-bold flex items-center gap-1">
-                            🎵 {item.instrumento}
-                          </span>
-                          <span className={`px-2.5 py-0.5 rounded-md text-[11px] font-bold ${
-                            item.origen_instrumento === 'Propio' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
-                          }`}>
-                            {item.origen_instrumento === 'Propio' ? '⭐ Instrumento Propio' : '🎵 Prestado (CODART)'}
-                          </span>
-                        </div>
-
-                        {item.celular && (
-                          <div className="pt-1">
-                            <a
-                              href={`https://wa.me/57${item.celular.replace(/\D/g, '')}?text=Hola%20${encodeURIComponent(item.nombre || '')},%20te%20escribimos%20desde%20CODART.`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-xs text-emerald-700 bg-emerald-50 hover:bg-emerald-100 font-bold px-2.5 py-1 rounded-lg transition border border-emerald-200"
-                            >
-                              <span>💬</span> WhatsApp: {item.celular}
-                            </a>
-                          </div>
-                        )}
-                      </div>
-
-                      {sesionAdmin && (
-                        <div className="flex items-center gap-2 shrink-0 w-full md:w-auto justify-end pt-2 md:pt-0 border-t md:border-t-0 border-slate-200">
-                          <button onClick={() => abrirModalEditarIntegrante(item)} className="bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold px-3.5 py-2 rounded-xl transition cursor-pointer flex items-center gap-1">
-                            <span>✏️</span> Editar
-                          </button>
-                          <button onClick={() => eliminarProcesoIntegrante(item.idProceso)} className="bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold px-3 py-2 rounded-xl transition cursor-pointer" title="Retirar del proceso">
-                            🗑️
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
         </div>
-      ) : (
-        <div className="text-center py-12 space-y-6">
-          <div className="bg-white p-8 rounded-3xl border border-slate-200 max-w-lg mx-auto shadow-sm space-y-4">
-            <h2 className="text-xl font-bold text-slate-900">Bienvenido a CODART</h2>
-            <button onClick={() => setMostrarModalInscripcion(true)} className="bg-emerald-600 text-white font-bold text-xs px-6 py-3 rounded-xl cursor-pointer">📝 Realizar Inscripción</button>
+      )}
+
+      {/* MODAL EDITAR INTEGRANTE ADMIN */}
+      {mostrarModalEditarIntegrante && sesionAdmin && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-lg relative shadow-2xl my-8">
+            <button onClick={() => setMostrarModalEditarIntegrante(false)} className="absolute top-4 right-4 text-slate-400 font-bold cursor-pointer">✕</button>
+            <h2 className="text-xl font-bold text-slate-900 mb-4">Editar Datos de Integrante</h2>
+            <form onSubmit={guardarEdicionIntegrante} className="space-y-3">
+              <input type="text" placeholder="Nombre" value={nombreEdit} onChange={(e) => setNombreEdit(e.target.value)} className={inputStyle} required />
+              <div className="grid grid-cols-3 gap-2">
+                <select value={tipoDocumentoEdit} onChange={(e) => setTipoDocumentoEdit(e.target.value)} className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs font-bold">
+                  <option value="C.C.">C.C.</option><option value="T.I.">T.I.</option><option value="R.C.">R.C.</option><option value="C.E.">C.E.</option>
+                </select>
+                <input type="text" placeholder="Documento" value={documentoEdit} onChange={(e) => setDocumentoEdit(e.target.value)} className="col-span-2 bg-slate-50 p-3 rounded-xl border border-slate-200 text-sm" required />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <input type="number" placeholder="Edad" value={edadEdit} onChange={(e) => setEdadEdit(e.target.value)} className={inputStyle} />
+                <input type="tel" placeholder="Celular" value={celularEdit} onChange={(e) => setCelularEdit(e.target.value)} className={inputStyle} />
+              </div>
+              <input type="text" placeholder="Instrumento" value={instrumentoEdit} onChange={(e) => setInstrumentoEdit(e.target.value)} className={inputStyle} required />
+              <select value={origenInstrumentoEdit} onChange={(e) => setOrigenInstrumentoEdit(e.target.value)} className={inputStyle}>
+                <option value="Prestado (CODART)">Prestado (CODART)</option>
+                <option value="Propio">Propio</option>
+              </select>
+              <input type="text" placeholder="Marca / Serie" value={marcaSerieEdit} onChange={(e) => setMarcaSerieEdit(e.target.value)} className={inputStyle} />
+              <button type="submit" className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-xl text-sm transition cursor-pointer">
+                Guardar Cambios
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL CREAR CARPETA OBRA */}
+      {mostrarModalNuevaCarpeta && sesionAdmin && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-md relative shadow-2xl space-y-4">
+            <button onClick={() => setMostrarModalNuevaCarpeta(false)} className="absolute top-4 right-4 text-slate-400 font-bold cursor-pointer">✕</button>
+            <h2 className="text-xl font-bold text-slate-900">Nueva Obra para {procesoActivo}</h2>
+            <form onSubmit={crearCarpetaObra} className="space-y-3">
+              <input type="text" placeholder="Título de la obra" value={tituloCarpeta} onChange={(e) => setTituloCarpeta(e.target.value)} className={inputStyle} required />
+              <input type="text" placeholder="Compositor / Arreglista" value={compositorCarpeta} onChange={(e) => setCompositorCarpeta(e.target.value)} className={inputStyle} />
+              <input type="url" placeholder="Link de audio de referencia (YouTube/Drive/MP3)" value={linkAudioCarpeta} onChange={(e) => setLinkAudioCarpeta(e.target.value)} className={inputStyle} />
+              <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl text-sm transition cursor-pointer">
+                Crear Obra
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL EDITAR CARPETA OBRA */}
+      {mostrarModalEditarCarpeta && sesionAdmin && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-md relative shadow-2xl space-y-4">
+            <button onClick={() => setMostrarModalEditarCarpeta(false)} className="absolute top-4 right-4 text-slate-400 font-bold cursor-pointer">✕</button>
+            <h2 className="text-xl font-bold text-slate-900">Editar Obra</h2>
+            <form onSubmit={guardarEdicionCarpeta} className="space-y-3">
+              <input type="text" placeholder="Título de la obra" value={tituloCarpetaEdit} onChange={(e) => setTituloCarpetaEdit(e.target.value)} className={inputStyle} required />
+              <input type="text" placeholder="Compositor / Arreglista" value={compositorCarpetaEdit} onChange={(e) => setCompositorCarpetaEdit(e.target.value)} className={inputStyle} />
+              <input type="url" placeholder="Link de audio de referencia" value={linkAudioCarpetaEdit} onChange={(e) => setLinkAudioCarpetaEdit(e.target.value)} className={inputStyle} />
+              <button type="submit" className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-xl text-sm transition cursor-pointer">
+                Guardar Cambios
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL SUBIR ARCHIVOS DE PARTITURAS */}
+      {mostrarModalSubirArchivos && sesionAdmin && obraSeleccionadaDrive && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-md relative shadow-2xl space-y-4">
+            <button onClick={() => setMostrarModalSubirArchivos(false)} className="absolute top-4 right-4 text-slate-400 font-bold cursor-pointer">✕</button>
+            <h2 className="text-xl font-bold text-slate-900">Subir Particelas PDF</h2>
+            <p className="text-xs text-slate-500">Obra: <strong>{obraSeleccionadaDrive.titulo}</strong></p>
+            <form onSubmit={subirArchivosSeleccionados} className="space-y-4">
+              <input
+                type="file"
+                accept=".pdf"
+                multiple
+                onChange={(e) => setArchivosSeleccionados(Array.from(e.target.files || []))}
+                className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                required
+              />
+              <button
+                type="submit"
+                disabled={subiendoArchivos}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm transition cursor-pointer disabled:opacity-50"
+              >
+                {subiendoArchivos ? 'Subiendo archivos...' : 'Subir a Supabase'}
+              </button>
+            </form>
           </div>
         </div>
       )}
