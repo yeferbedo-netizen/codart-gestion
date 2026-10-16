@@ -207,8 +207,13 @@ export default function Home() {
       return;
     }
 
-    const procesosDelEstudiante = procesosIntegrantes.filter(p => p.documento === docLimpio);
-    const tieneAprobado = procesosDelEstudiante.some(p => p.estado_registro === 'Aprobado');
+    const procesosDelEstudiante = procesosIntegrantes.filter(
+      p => p.documento && p.documento.toString().trim() === docLimpio
+    );
+    
+    const tieneAprobado = procesosDelEstudiante.some(
+      p => p.estado_registro && p.estado_registro.trim().toLowerCase() === 'aprobado'
+    );
 
     if (procesosDelEstudiante.length > 0 && !tieneAprobado) {
       alert('Tus registros en CODART aún están pendientes de aprobación por el Administrador.');
@@ -311,7 +316,7 @@ export default function Home() {
     alert('¡Proceso e instrumento aprobado con éxito!');
   };
 
-  // REGISTRO DIRECTO DESDE ADMIN (CON UPSERT PARA EVITAR DUPLICADOS)
+  // REGISTRO DIRECTO DESDE ADMIN (CON UPSERT PARA EVITAR ERRORES DE DOCUMENTO DUPLICADO)
   const handleRegistroAdminDirecto = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!sesionAdmin) return;
@@ -564,11 +569,18 @@ export default function Home() {
 
   // FILTRAR INTEGRANTES CON COINCIDENCIA FLEXIBLE DE PROCESOS
   const procesosEnProcesoActivo = procesosIntegrantes.filter(p => {
-    if (!p.proceso) return false;
-    return p.proceso.trim().toLowerCase() === procesoActivo.trim().toLowerCase() && p.estado_registro === 'Aprobado';
+    if (!p.proceso || !p.estado_registro) return false;
+    return (
+      p.proceso.trim().toLowerCase() === procesoActivo.trim().toLowerCase() &&
+      p.estado_registro.trim().toLowerCase() === 'aprobado'
+    );
   });
 
-  const pendientesList = procesosIntegrantes.filter(p => p.estado_registro === 'Pendiente');
+  // FILTRAR SOLICITUDES PENDIENTES CON COMPARACIÓN FLEXIBLE
+  const pendientesList = procesosIntegrantes.filter(p => {
+    if (!p.estado_registro) return false;
+    return p.estado_registro.trim().toLowerCase() === 'pendiente';
+  });
 
   const integrantesFiltrados = procesosEnProcesoActivo.map(proc => {
     const infoPersonal = integrantes.find(i => i.documento && proc.documento && i.documento.toString().trim() === proc.documento.toString().trim());
@@ -927,13 +939,18 @@ export default function Home() {
                   <p className="text-sm text-slate-400 py-4">No hay solicitudes pendientes por revisar.</p>
                 ) : (
                   pendientesList.map((p) => {
-                    const info = integrantes.find((i) => i.documento === p.documento);
+                    const info = integrantes.find((i) => 
+                      i.documento && p.documento && 
+                      i.documento.toString().trim() === p.documento.toString().trim()
+                    );
                     return (
                       <div key={p.id} className="py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                         <div>
-                          <h4 className="font-bold text-slate-900 text-base">{info?.nombre || 'Solicitante'}</h4>
+                          <h4 className="font-bold text-slate-900 text-base">
+                            {info?.nombre || 'Solicitante sin nombre en catálogo'}
+                          </h4>
                           <p className="text-xs text-slate-500">
-                            Doc: {p.documento} | Proceso: <strong className="text-slate-800">{p.proceso}</strong> | Instrumento: <strong className="text-indigo-600">{p.instrumento}</strong>
+                            Doc: <strong>{p.documento}</strong> | Proceso: <strong className="text-slate-800">{p.proceso}</strong> | Instrumento: <strong className="text-indigo-600">{p.instrumento}</strong>
                           </p>
                         </div>
                         <div className="flex gap-2">
