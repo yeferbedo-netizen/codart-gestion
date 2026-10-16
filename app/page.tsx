@@ -517,30 +517,6 @@ export default function Home() {
     );
   });
 
-  // CALENDARIO HELPER
-  const obtenerDiasDelMes = (fecha: Date | null) => {
-    if (!fecha) return [];
-    const anio = fecha.getFullYear();
-    const mes = fecha.getMonth();
-    const primerDia = new Date(anio, mes, 1).getDay();
-    const totalDias = new Date(anio, mes + 1, 0).getDate();
-    const inicioAjustado = primerDia === 0 ? 6 : primerDia - 1;
-    const dias = [];
-    for (let i = 0; i < inicioAjustado; i++) dias.push(null);
-    for (let d = 1; d <= totalDias; d++) dias.push(d);
-    return dias;
-  };
-
-  const nombresMeses = [
-    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
-  ];
-
-  const cambiarMes = (delta: number) => {
-    if (!fechaCalendario) return;
-    setFechaCalendario(new Date(fechaCalendario.getFullYear(), fechaCalendario.getMonth() + delta, 1));
-  };
-
   const inputStyle =
     'w-full bg-slate-50 p-3 rounded-xl border border-slate-200 text-slate-800 outline-none focus:border-blue-600 focus:bg-white transition text-sm';
 
@@ -1219,7 +1195,7 @@ export default function Home() {
               )}
             </div>
           ) : (
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
               <h2 className="text-lg font-bold text-slate-900 mb-4">Integrantes Oficiales ({filtrados.length})</h2>
               {sesionAdmin && (
                 <div className="relative mb-4">
@@ -1227,17 +1203,64 @@ export default function Home() {
                   <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">🔍</span>
                 </div>
               )}
-              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
+              <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
                 {filtrados.map((integrante) => (
-                  <div key={integrante.id} className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex justify-between items-center gap-2">
-                    <div>
-                      <h3 className="font-bold text-slate-900">{integrante.nombre}</h3>
-                      <p className="text-xs text-blue-600 font-semibold">🎵 {integrante.instrumento} | Doc: {integrante.tipo_documento} {integrante.documento}</p>
+                  <div key={integrante.id} className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition hover:border-blue-300">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-bold text-slate-900 text-base">{integrante.nombre}</h3>
+                        <span className="text-[11px] bg-slate-200/70 text-slate-700 px-2.5 py-0.5 rounded-full font-semibold">
+                          {integrante.tipo_documento} {integrante.documento}
+                        </span>
+                        {integrante.edad && (
+                          <span className="text-[11px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-semibold">
+                            {integrante.edad} años
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-3 flex-wrap text-xs text-slate-600 font-medium">
+                        <span className="text-blue-700 font-bold flex items-center gap-1">
+                          🎵 {integrante.instrumento}
+                        </span>
+                        <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold ${
+                          integrante.origen_instrumento === 'Propio' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
+                        }`}>
+                          {integrante.origen_instrumento === 'Propio' ? '⭐ Instrumento Propio' : '🎵 Prestado (CODART)'}
+                        </span>
+                        {integrante.marca_serie && integrante.marca_serie !== 'No especificada' && (
+                          <span className="text-slate-400 text-[11px]">Ref: {integrante.marca_serie}</span>
+                        )}
+                      </div>
+
+                      {integrante.celular && (
+                        <div className="pt-1">
+                          <a
+                            href={`https://wa.me/57${integrante.celular.replace(/\D/g, '')}?text=Hola%20${encodeURIComponent(integrante.nombre)},%20te%20escribimos%20desde%20CODART.`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-xs text-emerald-700 bg-emerald-50 hover:bg-emerald-100 font-bold px-2.5 py-1 rounded-lg transition border border-emerald-200"
+                          >
+                            <span>💬</span> WhatsApp: {integrante.celular}
+                          </a>
+                        </div>
+                      )}
+
+                      {integrante.nombre_acudiente && (
+                        <div className="text-[11px] bg-amber-50/80 text-amber-900 px-3 py-1.5 rounded-xl border border-amber-200 mt-2 inline-block">
+                          <strong>Acudiente:</strong> {integrante.nombre_acudiente} {integrante.celular_acudiente ? `(Tel: ${integrante.celular_acudiente})` : ''}
+                        </div>
+                      )}
                     </div>
+
                     {sesionAdmin && (
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button onClick={() => abrirModalEditarIntegrante(integrante)} className="bg-blue-50 text-blue-600 text-xs font-bold px-3 py-1.5 rounded-lg cursor-pointer">✏️ Editar</button>
-                        <button onClick={() => eliminarIntegrante(integrante.id)} className="bg-rose-50 text-rose-600 text-xs font-bold px-3 py-1.5 rounded-lg cursor-pointer">🗑️</button>
+                      <div className="flex items-center gap-2 shrink-0 w-full md:w-auto justify-end pt-2 md:pt-0 border-t md:border-t-0 border-slate-200">
+                        <button onClick={() => abrirModalEditarIntegrante(integrante)} className="bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold px-3.5 py-2 rounded-xl transition cursor-pointer flex items-center gap-1">
+                          <span>✏️</span> Editar
+                        </button>
+                        <button onClick={() => eliminarIntegrante(integrante.id)} className="bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold px-3 py-2 rounded-xl transition cursor-pointer">
+                          🗑️
+                        </button>
                       </div>
                     )}
                   </div>
