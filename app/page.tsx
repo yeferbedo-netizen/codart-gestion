@@ -311,7 +311,7 @@ export default function Home() {
     alert('¡Proceso e instrumento aprobado con éxito!');
   };
 
-  // REGISTRO DIRECTO DESDE ADMIN
+  // REGISTRO DIRECTO DESDE ADMIN (CON UPSERT PARA EVITAR DUPLICADOS)
   const handleRegistroAdminDirecto = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!sesionAdmin) return;
