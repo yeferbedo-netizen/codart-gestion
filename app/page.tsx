@@ -46,6 +46,10 @@ export default function Home() {
   const [editDocumentoAcudiente, setEditDocumentoAcudiente] = useState('');
   const [editCelularAcudiente, setEditCelularAcudiente] = useState('');
 
+  // LÓGICA DEL CALENDARIO
+  const hoy = new Date();
+  const [fechaCalendario, setFechaCalendario] = useState(new Date());
+
   useEffect(() => {
     cargarDatos();
     verificarSesion();
@@ -249,6 +253,36 @@ export default function Home() {
     return coincideProceso && coincideTexto;
   });
 
+  // HELPER PARA CONSTRUIR EL CALENDARIO
+  const obtenerDiasDelMes = (fecha: Date) => {
+    const anio = fecha.getFullYear();
+    const mes = fecha.getMonth();
+    const primerDia = new Date(anio, mes, 1).getDay();
+    const totalDias = new Date(anio, mes + 1, 0).getDate();
+
+    // Ajustar el primer día para que la semana empiece en Lunes (0 = Lunes, 6 = Domingo)
+    const inicioAjustado = primerDia === 0 ? 6 : primerDia - 1;
+
+    const dias = [];
+    for (let i = 0; i < inicioAjustado; i++) {
+      dias.push(null);
+    }
+    for (let d = 1; d <= totalDias; d++) {
+      dias.push(d);
+    }
+    return dias;
+  };
+
+  const nombresMeses = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ];
+
+  const cambiarMes = (delta: number) => {
+    const nueva = new Date(fechaCalendario.getFullYear(), fechaCalendario.getMonth() + delta, 1);
+    setFechaCalendario(nueva);
+  };
+
   const inputStyle =
     'w-full bg-slate-50 p-3 rounded-xl border border-slate-200 text-slate-800 outline-none focus:border-blue-600 focus:bg-white transition';
 
@@ -362,8 +396,8 @@ export default function Home() {
         ))}
       </div>
 
-      {/* CONTENIDO */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      {/* CONTENIDO PRINCIPAL */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
         {/* FORMULARIO */}
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
           <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
@@ -499,7 +533,7 @@ export default function Home() {
           </form>
         </div>
 
-        {/* LISTA (PROTEGIDA POR SESIÓN) */}
+        {/* LISTA DE INTEGRANTES */}
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
           <div className="flex justify-between items-center mb-4">
             <div>
@@ -787,6 +821,88 @@ export default function Home() {
               ))}
             </div>
           )}
+        </div>
+      </div>
+
+      {/* SECCIÓN DE CALENDARIO */}
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm max-w-xl mx-auto">
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center gap-2">
+            <span className="text-xl">📅</span>
+            <h2 className="text-lg font-bold text-slate-900">
+              Calendario de Eventos y Ensayos
+            </h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => cambiarMes(-1)}
+              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer"
+              title="Mes anterior"
+            >
+              ◀
+            </button>
+            <span className="text-sm font-bold text-blue-600 min-w-[130px] text-center">
+              {nombresMeses[fechaCalendario.getMonth()]} {fechaCalendario.getFullYear()}
+            </span>
+            <button
+              onClick={() => cambiarMes(1)}
+              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer"
+              title="Mes siguiente"
+            >
+              ▶
+            </button>
+          </div>
+        </div>
+
+        {/* ENCABEZADOS DE DÍAS */}
+        <div className="grid grid-cols-7 gap-2 text-center text-xs font-bold text-slate-400 mb-2">
+          <span>Lun</span>
+          <span>Mar</span>
+          <span>Mié</span>
+          <span>Jue</span>
+          <span>Vie</span>
+          <span>Sáb</span>
+          <span>Dom</span>
+        </div>
+
+        {/* GRILLA DE DÍAS */}
+        <div className="grid grid-cols-7 gap-2 text-center">
+          {obtenerDiasDelMes(fechaCalendario).map((dia, index) => {
+            if (!dia) {
+              return <div key={`empty-${index}`} className="h-10"></div>;
+            }
+
+            const esHoy =
+              dia === hoy.getDate() &&
+              fechaCalendario.getMonth() === hoy.getMonth() &&
+              fechaCalendario.getFullYear() === hoy.getFullYear();
+
+            return (
+              <div
+                key={dia}
+                className={`h-10 rounded-xl flex items-center justify-center text-sm font-semibold transition cursor-pointer ${
+                  esHoy
+                    ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-500/30 scale-105 ring-2 ring-blue-300'
+                    : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-100'
+                }`}
+              >
+                {dia}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-4 pt-4 border-t border-slate-100 flex justify-between items-center text-xs text-slate-500">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block"></span>
+            Día actual resaltado
+          </span>
+          <button
+            onClick={() => setFechaCalendario(new Date())}
+            className="text-blue-600 hover:underline font-semibold cursor-pointer"
+          >
+            Ir a hoy
+          </button>
         </div>
       </div>
     </main>
