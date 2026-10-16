@@ -1,3 +1,4 @@
+TypeScript
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -198,27 +199,35 @@ export default function Home() {
   );
 
   const inputStyle =
-    'w-full bg-slate-950 p-3 rounded-xl border border-slate-800 text-white outline-none focus:border-amber-500';
+    'w-full bg-slate-50 p-3 rounded-xl border border-slate-200 text-slate-800 outline-none focus:border-blue-600 focus:bg-white transition';
 
   const editInputStyle =
-    'w-full bg-slate-900 p-2 rounded-lg border border-slate-700 text-white text-xs outline-none focus:border-amber-500 mb-2';
+    'w-full bg-slate-50 p-2 rounded-lg border border-slate-200 text-slate-800 text-xs outline-none focus:border-blue-600 mb-2';
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 p-8">
+    <main className="min-h-screen bg-slate-50 text-slate-800 p-8">
       {/* ENCABEZADO */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-white">
-          CODART - Gestión de Integrantes
-        </h1>
+      <div className="flex justify-between items-center mb-8 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-md">
+            🎵
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+              CODART
+            </h1>
+            <p className="text-xs text-slate-500 font-medium">Gestión de Integrantes e Instrumentos</p>
+          </div>
+        </div>
         <div>
           {sesion ? (
             <div className="flex items-center gap-3">
-              <span className="text-xs text-amber-400 bg-amber-950/40 px-3 py-1.5 rounded-xl border border-amber-800">
+              <span className="text-xs text-blue-700 bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-200 font-medium">
                 Admin: {sesion.user.email}
               </span>
               <button
                 onClick={handleLogout}
-                className="bg-rose-600/25 hover:bg-rose-600/35 text-rose-400 text-xs font-bold px-3 py-1.5 rounded-xl border border-rose-800 transition cursor-pointer"
+                className="bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold px-3 py-1.5 rounded-xl border border-rose-200 transition cursor-pointer"
               >
                 Cerrar Sesión
               </button>
@@ -226,7 +235,7 @@ export default function Home() {
           ) : (
             <button
               onClick={() => setMostrarModal(true)}
-              className="bg-slate-900 hover:bg-slate-800 text-amber-400 text-xs font-bold px-4 py-2 rounded-xl border border-slate-800 transition cursor-pointer"
+              className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm transition cursor-pointer flex items-center gap-2"
             >
               🔐 Iniciar Sesión Admin
             </button>
@@ -236,16 +245,16 @@ export default function Home() {
 
       {/* MODAL LOGIN */}
       {mostrarModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl w-full max-w-md relative shadow-2xl">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white border border-slate-200 p-6 rounded-2xl w-full max-w-md relative shadow-xl">
             <button
               type="button"
               onClick={() => setMostrarModal(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white"
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 cursor-pointer"
             >
               ✕
             </button>
-            <h2 className="text-xl font-bold text-white mb-4">
+            <h2 className="text-xl font-bold text-slate-900 mb-4">
               Acceso Administrador
             </h2>
             <form onSubmit={handleLogin} className="space-y-4">
@@ -267,7 +276,7 @@ export default function Home() {
               />
               <button
                 type="submit"
-                className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold p-3 rounded-xl text-sm transition cursor-pointer"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-3 rounded-xl text-sm transition cursor-pointer shadow-sm"
               >
                 Ingresar
               </button>
@@ -277,15 +286,15 @@ export default function Home() {
       )}
 
       {/* PESTAÑAS */}
-      <div className="flex gap-4 mb-6 flex-wrap">
+      <div className="flex gap-3 mb-8 flex-wrap">
         {['Banda Filarmónica', 'Banda de Marcha', 'Prebanda'].map((p) => (
           <button
             key={p}
             onClick={() => setProcesoActivo(p)}
-            className={`px-4 py-2 rounded-xl font-semibold cursor-pointer ${
+            className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition cursor-pointer shadow-xs ${
               procesoActivo === p
-                ? 'bg-amber-500 text-slate-950'
-                : 'bg-slate-900 text-white hover:bg-slate-800'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
             }`}
           >
             {p}
@@ -296,15 +305,15 @@ export default function Home() {
       {/* CONTENIDO */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* FORMULARIO */}
-        <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800">
-          <h2 className="text-xl font-bold text-white mb-4">
-            Registrar en {procesoActivo}
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <span>📝</span> Registrar en {procesoActivo}
           </h2>
 
           {!sesion && (
-            <p className="text-xs text-amber-400/90 bg-amber-950/30 p-2.5 rounded-xl border border-amber-900/50 mb-4">
+            <div className="text-xs text-amber-800 bg-amber-50 p-3 rounded-xl border border-amber-200 mb-4 font-medium">
               ⚠️ Inicia sesión como administrador para habilitar el guardado en la nube.
-            </p>
+            </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -320,7 +329,7 @@ export default function Home() {
               <select
                 value={tipoDocumento}
                 onChange={(e) => setTipoDocumento(e.target.value)}
-                className="w-1/3 bg-slate-950 p-3 rounded-xl border border-slate-800 text-white outline-none focus:border-amber-500 font-semibold"
+                className="w-1/3 bg-slate-50 p-3 rounded-xl border border-slate-200 text-slate-800 outline-none focus:border-blue-600 font-semibold"
               >
                 <option value="C.C.">C.C.</option>
                 <option value="T.I.">T.I.</option>
@@ -333,7 +342,7 @@ export default function Home() {
                 placeholder="Número de documento"
                 value={documento}
                 onChange={(e) => setDocumento(e.target.value)}
-                className="w-2/3 bg-slate-950 p-3 rounded-xl border border-slate-800 text-white outline-none focus:border-amber-500"
+                className="w-2/3 bg-slate-50 p-3 rounded-xl border border-slate-200 text-slate-800 outline-none focus:border-blue-600"
               />
             </div>
             <input
@@ -371,52 +380,52 @@ export default function Home() {
             <button
               type="submit"
               disabled={!sesion}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:text-slate-500 text-white py-3 rounded-xl transition font-bold"
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 text-white py-3 rounded-xl transition font-bold shadow-sm cursor-pointer disabled:cursor-not-allowed"
             >
-              Enviar
+              Registrar Integrante
             </button>
           </form>
         </div>
 
         {/* LISTA (PROTEGIDA POR SESIÓN) */}
-        <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800">
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
           <div className="flex justify-between items-center mb-4">
             <div>
-              <h2 className="text-xl font-bold text-white">Integrantes</h2>
-              <p className="text-sm text-slate-400">{procesoActivo}</p>
+              <h2 className="text-lg font-bold text-slate-900">Integrantes</h2>
+              <p className="text-xs text-slate-500 font-medium">{procesoActivo}</p>
             </div>
             {sesion && (
-              <span className="bg-slate-950 border border-slate-800 px-3 py-1 rounded-xl text-amber-400 text-sm">
-                {filtrados.length}
+              <span className="bg-blue-50 border border-blue-200 px-3 py-1 rounded-xl text-blue-700 text-xs font-bold">
+                Total: {filtrados.length}
               </span>
             )}
           </div>
 
           {!sesion ? (
-            <div className="text-center py-16 text-slate-400 space-y-3">
+            <div className="text-center py-20 text-slate-400 space-y-3">
               <p className="text-3xl">🔒</p>
-              <p className="font-semibold text-white">Información Protegida</p>
+              <p className="font-semibold text-slate-700">Información Protegida</p>
               <p className="text-xs text-slate-500 max-w-xs mx-auto">
                 Inicia sesión como administrador para ver y gestionar la lista de integrantes de este proceso.
               </p>
             </div>
           ) : cargando ? (
-            <div className="text-center py-10 text-slate-400">Cargando...</div>
+            <div className="text-center py-10 text-slate-500">Cargando registros...</div>
           ) : filtrados.length === 0 ? (
-            <div className="text-center py-10 text-slate-500">
-              No hay integrantes registrados.
+            <div className="text-center py-10 text-slate-400 text-sm">
+              No hay integrantes registrados en este proceso.
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-3 max-h-[550px] overflow-y-auto pr-1">
               {filtrados.map((integrante) => (
                 <div
                   key={integrante.id}
-                  className="bg-slate-950 border border-slate-800 rounded-xl p-4"
+                  className="bg-slate-50 border border-slate-200 rounded-xl p-4 transition hover:border-blue-300"
                 >
                   {editandoId === integrante.id ? (
                     /* MODO EDICIÓN */
                     <div className="space-y-2">
-                      <p className="text-xs font-bold text-amber-400 mb-1">Editando información:</p>
+                      <p className="text-xs font-bold text-blue-600 mb-1">Editando información:</p>
                       <input
                         type="text"
                         value={editNombre}
@@ -428,7 +437,7 @@ export default function Home() {
                         <select
                           value={editTipoDocumento}
                           onChange={(e) => setEditTipoDocumento(e.target.value)}
-                          className="w-1/3 bg-slate-900 p-2 rounded-lg border border-slate-700 text-white text-xs outline-none focus:border-amber-500 mb-2 font-semibold"
+                          className="w-1/3 bg-slate-50 p-2 rounded-lg border border-slate-200 text-slate-800 text-xs outline-none focus:border-blue-600 mb-2 font-semibold"
                         >
                           <option value="C.C.">C.C.</option>
                           <option value="T.I.">T.I.</option>
@@ -440,7 +449,7 @@ export default function Home() {
                           type="text"
                           value={editDocumento}
                           onChange={(e) => setEditDocumento(e.target.value)}
-                          className="w-2/3 bg-slate-900 p-2 rounded-lg border border-slate-700 text-white text-xs outline-none focus:border-amber-500 mb-2"
+                          className="w-2/3 bg-slate-50 p-2 rounded-lg border border-slate-200 text-slate-800 text-xs outline-none focus:border-blue-600 mb-2"
                           placeholder="Número de documento"
                         />
                       </div>
@@ -485,7 +494,7 @@ export default function Home() {
                         </button>
                         <button
                           onClick={() => setEditandoId(null)}
-                          className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer"
+                          className="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer"
                         >
                           Cancelar
                         </button>
@@ -495,12 +504,12 @@ export default function Home() {
                     /* MODO VISTA NORMAL */
                     <div className="flex justify-between gap-4">
                       <div>
-                        <h3 className="font-bold text-white">{integrante.nombre}</h3>
-                        <p className="text-sm text-amber-400 mt-1">
+                        <h3 className="font-bold text-slate-900">{integrante.nombre}</h3>
+                        <p className="text-sm text-blue-600 font-semibold mt-0.5">
                           🎵 {integrante.instrumento}
                         </p>
                         {integrante.documento && (
-                          <p className="text-xs text-slate-400 mt-1">
+                          <p className="text-xs text-slate-500 mt-1">
                             Documento: {integrante.tipo_documento || 'C.C.'} {integrante.documento}
                           </p>
                         )}
@@ -510,26 +519,26 @@ export default function Home() {
                               href={`https://wa.me/57${integrante.celular.replace(/\D/g, '')}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-emerald-400 hover:underline inline-flex items-center gap-1"
+                              className="text-emerald-600 hover:underline inline-flex items-center gap-1 font-medium"
                               title="Abrir WhatsApp"
                             >
                               💬 Celular: {integrante.celular}
                             </a>
                           </p>
                         )}
-                        <p className="text-xs text-slate-400 mt-1">
+                        <p className="text-xs text-slate-500 mt-1">
                           Marca / Serie: {integrante.marca_serie || 'No especificada'}
                         </p>
-                        <p className="text-xs text-slate-400 mt-1">
-                          Estado: {integrante.estado_instrumento}
+                        <p className="text-xs text-slate-500 mt-1">
+                          Estado: <span className="font-medium text-slate-700">{integrante.estado_instrumento}</span>
                         </p>
                       </div>
 
-                      <div className="flex flex-col gap-2 items-center justify-center">
+                      <div className="flex flex-col gap-1 items-center justify-center">
                         <button
                           type="button"
                           onClick={() => iniciarEdicion(integrante)}
-                          className="text-amber-400 hover:text-amber-300 p-1.5 text-sm cursor-pointer"
+                          className="text-amber-600 hover:text-amber-700 p-1.5 text-sm cursor-pointer bg-amber-50 rounded-lg border border-amber-200 transition"
                           title="Editar"
                         >
                           ✏️
@@ -537,7 +546,7 @@ export default function Home() {
                         <button
                           type="button"
                           onClick={() => eliminarIntegrante(integrante.id)}
-                          className="text-rose-400 hover:text-rose-300 p-1.5 text-sm cursor-pointer"
+                          className="text-rose-600 hover:text-rose-700 p-1.5 text-sm cursor-pointer bg-rose-50 rounded-lg border border-rose-200 transition"
                           title="Eliminar"
                         >
                           🗑️
