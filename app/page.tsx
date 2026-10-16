@@ -266,6 +266,18 @@ export default function Home() {
     }
   };
 
+  const cambiarEstadoRegistro = async (id: string, nuevoEstado: string) => {
+    if (!sesionAdmin) return;
+    if (nuevoEstado === 'Eliminar') {
+      const confirmar = window.confirm('¿Deseas rechazar y eliminar esta solicitud de registro?');
+      if (!confirmar) return;
+      await supabase.from('integrantes').delete().eq('id', id);
+    } else {
+      await supabase.from('integrantes').update({ estado_registro: nuevoEstado }).eq('id', id);
+    }
+    cargarDatos();
+  };
+
   const eliminarIntegrante = async (id: string) => {
     if (!sesionAdmin) return;
     const confirmar = window.confirm('¿Seguro que deseas eliminar este integrante?');
@@ -380,7 +392,17 @@ export default function Home() {
     cargarPartituras();
   };
 
+  const eliminarParticela = async (id: string) => {
+    if (!sesionAdmin) return;
+    const confirmar = window.confirm('¿Deseas eliminar este archivo?');
+    if (!confirmar) return;
+
+    await supabase.from('particelas').delete().eq('id', id);
+    cargarPartituras();
+  };
+
   // FILTRADOS
+  const pendientes = integrantes.filter((i) => i.estado_registro === 'Pendiente');
   const filtrados = integrantes.filter((integrante) => {
     const esAprobado = integrante.estado_registro !== 'Pendiente';
     const coincideProceso = integrante.proceso === procesoActivo;
@@ -500,7 +522,7 @@ export default function Home() {
                 <span>🔗</span> Código QR
               </button>
 
-              {/* 3. Botón Iniciar Sesión para Estudiantes */}
+              {/* 3. Botón Iniciar Sesión para Estudiantes / Integrantes */}
               <button
                 onClick={() => setMostrarModalIntegrante(true)}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs md:text-sm font-bold px-3 py-2.5 rounded-xl shadow-sm transition cursor-pointer flex items-center gap-1.5"
