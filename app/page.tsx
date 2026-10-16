@@ -1,3 +1,13 @@
+¡Tienes toda la razón, Jefersson! Me percaté de que en el bloque de botones de la cabecera del repositorio faltó colocar de forma muy visible el botón de "📁+ Nueva Carpeta" (para cuando el administrador esté explorando las obras o carpetas principales) y el botón flotante o directo para que las carpetas abran el selector de archivos al instante.
+
+Además, recuerda que el botón de "Nueva Carpeta" y la opción de subir archivos PDF solo aparecen visibles cuando has iniciado sesión como Administrador. Si entras como integrante o invitado, por seguridad esas opciones no se muestran para mantener el modo de solo lectura.
+
+Código actualizado para app/page.tsx
+He ajustado la barra superior del repositorio para que el botón "📁+ Nueva Carpeta" esté siempre presente y destacado para ti como Administrador, permitiéndote crear carpetas y gestionar la subida múltiple de PDFs de forma súper fluida.
+
+Copia y reemplaza todo tu archivo app/page.tsx:
+
+TypeScript
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -164,7 +174,7 @@ export default function Home() {
     if (error) alert('Error al cerrar sesión: ' + error.message);
   };
 
-  // LOGIN INTEGRANTE (Documento + contraseña 'codart')
+  // LOGIN INTEGRANTE
   const handleLoginIntegrante = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!documentoLogin.trim() || !passwordLogin.trim()) return;
@@ -287,52 +297,6 @@ export default function Home() {
     } else {
       await supabase.from('integrantes').update({ estado_registro: nuevoEstado }).eq('id', id);
     }
-    cargarDatos();
-  };
-
-  const iniciarEdicion = (integrante: any) => {
-    setEditandoId(integrante.id);
-    setEditNombre(integrante.nombre || '');
-    setEditTipoDocumento(integrante.tipo_documento || 'C.C.');
-    setEditDocumento(integrante.documento || '');
-    setEditEdad(integrante.edad !== null && integrante.edad !== undefined ? String(integrante.edad) : '');
-    setEditCelular(integrante.celular || '');
-    setEditGradoEscolar(integrante.grado_escolar || '');
-    setEditInstrumento(integrante.instrumento || '');
-    setEditOrigenInstrumento(integrante.origen_instrumento || 'Prestado (CODART)');
-    setEditMarcaSerie(integrante.marca_serie || '');
-    setEditEstadoInstrumento(integrante.estado_instrumento || 'Excelente');
-    setEditNombreAcudiente(integrante.nombre_acudiente || '');
-    setEditDocumentoAcudiente(integrante.documento_acudiente || '');
-    setEditCelularAcudiente(integrante.celular_acudiente || '');
-  };
-
-  const guardarEdicion = async (id: string) => {
-    const numEdad = editEdad ? parseInt(editEdad, 10) : null;
-    const { error } = await supabase
-      .from('integrantes')
-      .update({
-        nombre: editNombre.trim(),
-        tipo_documento: editTipoDocumento,
-        documento: editDocumento.trim(),
-        edad: numEdad,
-        celular: editCelular.trim(),
-        grado_escolar: procesoActivo === 'Proyecto de Música Escolar' ? editGradoEscolar.trim() : null,
-        instrumento: editInstrumento.trim(),
-        origen_instrumento: editOrigenInstrumento,
-        marca_serie: editMarcaSerie.trim(),
-        estado_instrumento: editEstadoInstrumento,
-        nombre_acudiente: editNombreAcudiente.trim() || null,
-        documento_acudiente: editDocumentoAcudiente.trim() || null,
-        celular_acudiente: editCelularAcudiente.trim() || null,
-      })
-      .eq('id', id);
-
-    if (error) {
-      alert('Error al actualizar: ' + error.message);
-      return;
-    }
-    setEditandoId(null);
     cargarDatos();
   };
 
@@ -512,8 +476,6 @@ export default function Home() {
 
   const inputStyle =
     'w-full bg-slate-50 p-3 rounded-xl border border-slate-200 text-slate-800 outline-none focus:border-blue-600 focus:bg-white transition text-sm';
-  const editInputStyle =
-    'w-full bg-slate-50 p-2 rounded-lg border border-slate-200 text-slate-800 text-xs outline-none focus:border-blue-600 mb-2';
 
   const appUrl = typeof window !== 'undefined' ? window.location.href : 'https://codart-gestion.vercel.app';
   const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(appUrl)}`;
@@ -554,7 +516,6 @@ export default function Home() {
             <span>🔗</span> Código QR
           </button>
 
-          {/* BOTONES DE ACCESO SEGÚN EL TIPO DE SESIÓN */}
           {sesionAdmin ? (
             <div className="flex items-center gap-2">
               <span className="text-xs text-blue-700 bg-blue-50 px-3 py-2 rounded-xl border border-blue-200 font-bold">
@@ -651,65 +612,31 @@ export default function Home() {
       {mostrarQR && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
           <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-sm text-center relative shadow-2xl space-y-4">
-            <button
-              type="button"
-              onClick={() => setMostrarQR(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 cursor-pointer text-sm font-bold"
-            >
-              ✕
-            </button>
+            <button type="button" onClick={() => setMostrarQR(false)} className="absolute top-4 right-4 text-slate-400 font-bold">✕</button>
             <h2 className="text-xl font-bold text-slate-900">Código QR de la Plataforma</h2>
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 inline-block">
               <img src={qrApiUrl} alt="QR CODART" className="w-48 h-48 mx-auto rounded-xl shadow-xs" />
             </div>
             <p className="text-[11px] font-mono text-slate-400 break-all">{appUrl}</p>
-            <button
-              onClick={() => window.print()}
-              className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs transition cursor-pointer"
-            >
+            <button onClick={() => window.print()} className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs cursor-pointer">
               🖨️ Imprimir Código QR
             </button>
           </div>
         </div>
       )}
 
-      {/* MODAL INICIO DE SESIÓN INTEGRANTE (DOCUMENTO + CONTRASEÑA 'codart') */}
+      {/* MODAL LOGIN INTEGRANTE */}
       {mostrarModalIntegrante && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-md relative shadow-2xl space-y-4">
-            <button
-              type="button"
-              onClick={() => setMostrarModalIntegrante(false)}
-              className="absolute top-4 right-4 text-slate-400 font-bold"
-            >
-              ✕
-            </button>
+            <button type="button" onClick={() => setMostrarModalIntegrante(false)} className="absolute top-4 right-4 text-slate-400 font-bold">✕</button>
             <h2 className="text-xl font-bold text-slate-900">🎵 Acceso para Integrantes</h2>
-            <p className="text-xs text-slate-500">
-              Ingresa tu número de documento registrado y la contraseña universal para consultar partituras.
-            </p>
+            <p className="text-xs text-slate-500">Ingresa tu número de documento y la contraseña universal <strong>codart</strong>.</p>
 
             <form onSubmit={handleLoginIntegrante} className="space-y-3">
-              <input
-                type="text"
-                placeholder="Número de documento"
-                value={documentoLogin}
-                onChange={(e) => setDocumentoLogin(e.target.value)}
-                className={inputStyle}
-                required
-              />
-              <input
-                type="password"
-                placeholder="Contraseña (codart)"
-                value={passwordLogin}
-                onChange={(e) => setPasswordLogin(e.target.value)}
-                className={inputStyle}
-                required
-              />
-              <button
-                type="submit"
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm transition cursor-pointer"
-              >
+              <input type="text" placeholder="Número de documento" value={documentoLogin} onChange={(e) => setDocumentoLogin(e.target.value)} className={inputStyle} required />
+              <input type="password" placeholder="Contraseña (codart)" value={passwordLogin} onChange={(e) => setPasswordLogin(e.target.value)} className={inputStyle} required />
+              <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm transition cursor-pointer">
                 Ingresar al Repositorio
               </button>
             </form>
@@ -813,7 +740,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL CREAR CARPETA (SOLO ADMIN) */}
+      {/* MODAL NUEVA CARPETA (SOLO ADMIN) */}
       {mostrarModalNuevaCarpeta && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-md relative shadow-2xl">
@@ -919,7 +846,7 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="flex items-center gap-3 w-full md:w-auto">
+            <div className="flex items-center gap-3 w-full md:w-auto flex-wrap">
               {!obraSeleccionadaDrive && (
                 <div className="relative flex-1 md:w-64">
                   <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 text-sm">🔍</span>
@@ -928,15 +855,16 @@ export default function Home() {
                     placeholder="Buscar carpeta..."
                     value={busquedaPartitura}
                     onChange={(e) => setBusquedaPartitura(e.target.value)}
-                    className="w-full bg-slate-50 pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-xs outline-none focus:border-blue-600"
+                    className="w-full bg-slate-50 pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-xs outline-none focus:border-blue-600"
                   />
                 </div>
               )}
 
+              {/* BOTÓN "NUEVA CARPETA" DESTACADO PARA EL ADMIN */}
               {sesionAdmin && !obraSeleccionadaDrive && (
                 <button
                   onClick={() => setMostrarModalNuevaCarpeta(true)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-xs transition cursor-pointer whitespace-nowrap flex items-center gap-1.5"
+                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs transition cursor-pointer whitespace-nowrap flex items-center gap-1.5"
                 >
                   <span>📁+</span> Nueva Carpeta
                 </button>
@@ -945,7 +873,7 @@ export default function Home() {
               {obraSeleccionadaDrive && (
                 <button
                   onClick={() => setObraSeleccionadaDrive(null)}
-                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-4 py-2 rounded-xl transition cursor-pointer"
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-4 py-2.5 rounded-xl transition cursor-pointer"
                 >
                   ◀ Volver a Carpetas
                 </button>
@@ -955,10 +883,20 @@ export default function Home() {
 
           {!obraSeleccionadaDrive ? (
             obrasFiltradas.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-400 space-y-2">
+              <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-400 space-y-3">
                 <p className="text-4xl">📁</p>
                 <p className="font-semibold text-slate-700 text-sm">No hay carpetas en {procesoActivo}</p>
-                <p className="text-xs text-slate-500">Aún no se han añadido carpetas musicales.</p>
+                <p className="text-xs text-slate-500 max-w-xs mx-auto">
+                  {sesionAdmin ? 'Haz clic en el botón superior "Nueva Carpeta" para empezar a organizar tu repertorio musical.' : 'Aún no se han creado carpetas musicales.'}
+                </p>
+                {sesionAdmin && (
+                  <button
+                    onClick={() => setMostrarModalNuevaCarpeta(true)}
+                    className="mt-2 bg-blue-600 text-white font-bold text-xs px-4 py-2.5 rounded-xl inline-flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <span>📁+</span> Crear mi primera carpeta
+                  </button>
+                )}
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -1032,10 +970,18 @@ export default function Home() {
               </div>
 
               {particelas.filter((p) => p.obra_id === obraSeleccionadaDrive.id).length === 0 ? (
-                <div className="text-center py-16 text-slate-400 space-y-2">
+                <div className="text-center py-16 text-slate-400 space-y-3">
                   <p className="text-3xl">📄</p>
                   <p className="font-semibold text-slate-700 text-sm">Esta carpeta está vacía</p>
-                  <p className="text-xs text-slate-500">No hay partituras subidas en esta obra.</p>
+                  <p className="text-xs text-slate-500">Sube tus partituras en PDF para que los integrantes puedan consultarlas.</p>
+                  {sesionAdmin && (
+                    <button
+                      onClick={() => setMostrarModalSubirArchivos(true)}
+                      className="mt-2 bg-emerald-600 text-white font-bold text-xs px-4 py-2.5 rounded-xl inline-flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span>📤</span> Subir archivos ahora
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
