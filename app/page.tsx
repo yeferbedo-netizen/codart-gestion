@@ -1,8 +1,19 @@
-¡Ah, te pido una disculpa, Jefersson! Te entendí al revés. Lo que me pides es muy preciso: el botón para seleccionar el módulo de "Repositorio (Drive)" ni siquiera debe aparecer en la pantalla si la persona es un visitante o público general que no ha iniciado sesión. Solo debe aparecer y volverse visible una vez que el integrante o el administrador ingresen a la plataforma con su respectiva sesión.
+¡Ah, ya te entiendo a la perfección, Jefersson! Mil disculpas por no haber captado esa idea exacta antes.
 
-Aquí tienes el código corregido con esa lógica exacta: mientras estés fuera, los botones de navegación de módulos se ocultan por completo para el público, y solo se muestran cuando ya estás logueado.
+Lo que necesitas es que en la pantalla principal (cuando nadie ha iniciado sesión) existan únicamente 4 botones limpios y directos:
 
-Código actualizado para app/page.tsx
+Inscripción (para registrarse)
+
+Código QR
+
+Iniciar Sesión (Estudiante / Integrante)
+
+Admin (Acceso Administrador)
+
+Y que todo lo demás (el repositorio, listas, etc.) quede oculto hasta que el usuario ingrese con su sesión.
+
+Aquí tienes el código exacto de app/page.tsx con esa barra de botones principal limpia y reducida exactamente a esos 4 accesos:
+
 TypeScript
 'use client';
 
@@ -390,7 +401,7 @@ export default function Home() {
 
   const eliminarCarpetaObra = async (id: string) => {
     if (!sesionAdmin) return;
-    const confirmar = window.confirm('¿Seguro que deseas eliminar esta carpeta y todos seus PDFs?');
+    const confirmar = window.confirm('¿Seguro que deseas eliminar esta carpeta y todos sus PDFs?');
     if (!confirmar) return;
 
     await supabase.from('obras').delete().eq('id', id);
@@ -466,7 +477,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-800 p-4 md:p-8">
-      {/* ENCABEZADO PRINCIPAL */}
+      {/* ENCABEZADO PRINCIPAL CON LOS 4 BOTONES EXACTOS */}
       <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
         <div className="flex items-center gap-4">
           <img 
@@ -484,67 +495,72 @@ export default function Home() {
           </div>
         </div>
         
+        {/* LOS 4 BOTONES SOLICITADOS PARA VISITANTES, O BOTONES DE SALIDA SI YA ESTÁN LOGUEADOS */}
         <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={() => setMostrarModalInscripcion(true)}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs md:text-sm font-bold px-4 py-2.5 rounded-xl shadow-xs transition cursor-pointer flex items-center gap-2"
-          >
-            <span>📝</span> Inscripción
-          </button>
-
-          <button
-            onClick={() => setMostrarQR(true)}
-            className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-2.5 rounded-xl border border-slate-200 transition cursor-pointer flex items-center gap-1.5"
-            title="Código QR enlace"
-          >
-            <span>🔗</span> Código QR
-          </button>
-
           {sesionAdmin ? (
             <div className="flex items-center gap-2">
-              <span className="text-xs text-blue-700 bg-blue-50 px-3 py-2 rounded-xl border border-blue-200 font-bold">
+              <span className="text-xs text-blue-700 bg-blue-50 px-3 py-2.5 rounded-xl border border-blue-200 font-bold">
                 Admin
               </span>
               <button
                 onClick={handleLogoutAdmin}
-                className="bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold px-3 py-2 rounded-xl border border-rose-200 transition cursor-pointer"
+                className="bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold px-3 py-2.5 rounded-xl border border-rose-200 transition cursor-pointer"
               >
                 Cerrar Sesión
               </button>
             </div>
           ) : sesionIntegrante ? (
             <div className="flex items-center gap-2">
-              <span className="text-xs text-emerald-700 bg-emerald-50 px-3 py-2 rounded-xl border border-emerald-200 font-bold">
+              <span className="text-xs text-emerald-700 bg-emerald-50 px-3 py-2.5 rounded-xl border border-emerald-200 font-bold">
                 Músico: {sesionIntegrante.nombre}
               </span>
               <button
                 onClick={handleLogoutIntegrante}
-                className="bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold px-3 py-2 rounded-xl border border-rose-200 transition cursor-pointer"
+                className="bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold px-3 py-2.5 rounded-xl border border-rose-200 transition cursor-pointer"
               >
-                Salir
+                Cerrar Sesión
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* 1. Botón Inscripción */}
+              <button
+                onClick={() => setMostrarModalInscripcion(true)}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs md:text-sm font-bold px-4 py-2.5 rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5"
+              >
+                <span>📝</span> Inscripción
+              </button>
+
+              {/* 2. Botón Código QR */}
+              <button
+                onClick={() => setMostrarQR(true)}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs md:text-sm font-bold px-3 py-2.5 rounded-xl border border-slate-200 transition cursor-pointer flex items-center gap-1.5"
+              >
+                <span>🔗</span> Código QR
+              </button>
+
+              {/* 3. Botón Iniciar Sesión para Estudiantes / Integrantes */}
               <button
                 onClick={() => setMostrarModalIntegrante(true)}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2.5 rounded-xl shadow-sm transition cursor-pointer flex items-center gap-1"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs md:text-sm font-bold px-3 py-2.5 rounded-xl shadow-sm transition cursor-pointer flex items-center gap-1.5"
               >
-                🎵 Iniciar Sesión (Músico)
+                <span>🎵</span> Iniciar sesión (Estudiantes)
               </button>
+
+              {/* 4. Botón Acceso Admin */}
               <button
                 onClick={() => setMostrarModalAdmin(true)}
-                className="bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-3 py-2.5 rounded-xl shadow-sm transition cursor-pointer"
+                className="bg-slate-800 hover:bg-slate-900 text-white text-xs md:text-sm font-bold px-3 py-2.5 rounded-xl shadow-sm transition cursor-pointer flex items-center gap-1.5"
               >
-                🔐 Admin
+                <span>🔐</span> Acceso Admin
               </button>
             </div>
           )}
         </div>
       </div>
 
-      {/* SELECTOR DE MÓDULO (SOLO APARECE SI HAY SESIÓN ACTIVA DE ADMIN O MÚSICO) */}
-      {(sesionAdmin || sesionIntegrante) ? (
+      {/* SELECTOR DE MÓDULO (SOLO APARECE SI HAY SESIÓN ACTIVA DE ADMIN O ESTUDIANTE) */}
+      {(sesionAdmin || sesionIntegrante) && (
         <div className="flex gap-2 mb-6 bg-slate-200/60 p-1.5 rounded-2xl max-w-md mx-auto md:mx-0 animate-fade-in">
           <button
             onClick={() => setModuloActivo('partituras')}
@@ -566,10 +582,6 @@ export default function Home() {
           >
             <span>👥</span> Integrantes
           </button>
-        </div>
-      ) : (
-        <div className="bg-blue-50 border border-blue-200 p-4 rounded-2xl mb-6 text-center text-xs text-blue-800 font-medium">
-          👋 ¡Hola! Inicia sesión arriba como <strong>Músico</strong> (con tu documento y la contraseña <code>codart</code>) o como <strong>Administrador</strong> para desbloquear el Repositorio de Partituras.
         </div>
       )}
 
@@ -620,13 +632,13 @@ export default function Home() {
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-md relative shadow-2xl space-y-4">
             <button type="button" onClick={() => setMostrarModalIntegrante(false)} className="absolute top-4 right-4 text-slate-400 font-bold">✕</button>
-            <h2 className="text-xl font-bold text-slate-900">🎵 Acceso para Integrantes</h2>
+            <h2 className="text-xl font-bold text-slate-900">🎵 Acceso para Estudiantes</h2>
             <p className="text-xs text-slate-500">Ingresa tu número de documento y la contraseña universal <strong>codart</strong>.</p>
 
             <form onSubmit={handleLoginIntegrante} className="space-y-3">
               <input type="text" placeholder="Número de documento" value={documentoLogin} onChange={(e) => setDocumentoLogin(e.target.value)} className={inputStyle} required />
               <input type="password" placeholder="Contraseña (codart)" value={passwordLogin} onChange={(e) => setPasswordLogin(e.target.value)} className={inputStyle} required />
-              <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm transition cursor-pointer">
+              <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl text-sm transition cursor-pointer">
                 Ingresar al Repositorio
               </button>
             </form>
@@ -643,7 +655,7 @@ export default function Home() {
             <form onSubmit={handleLoginAdmin} className="space-y-4">
               <input type="email" placeholder="Correo electrónico" value={emailAdmin} onChange={(e) => setEmailAdmin(e.target.value)} className={inputStyle} required />
               <input type="password" placeholder="Contraseña" value={passwordAdmin} onChange={(e) => setPasswordAdmin(e.target.value)} className={inputStyle} required />
-              <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-3 rounded-xl text-sm">Ingresar</button>
+              <button type="submit" className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold p-3 rounded-xl text-sm">Ingresar</button>
             </form>
           </div>
         </div>
@@ -1004,8 +1016,8 @@ export default function Home() {
                 <h2 className="text-lg font-bold text-slate-900 mb-2">🎵 Agrupaciones Musicales CODART</h2>
                 <p className="text-sm text-slate-600 mb-4">Proceso seleccionado: <strong className="text-blue-600">{procesoActivo}</strong>.</p>
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-xs text-slate-600 space-y-2">
-                  <p className="font-bold text-slate-800">¿Eres músico de CODART?</p>
-                  <p>Inicia sesión en la parte superior con tu número de documento y la contraseña <strong>codart</strong> para acceder a las partituras.</p>
+                  <p className="font-bold text-slate-800">¿Eres estudiante o músico de CODART?</p>
+                  <p>Inicia sesión arriba con tu número de documento y la contraseña <strong>codart</strong> para acceder a las partituras.</p>
                 </div>
               </div>
               <button onClick={() => setMostrarModalInscripcion(true)} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold text-sm shadow-xs mt-4">
