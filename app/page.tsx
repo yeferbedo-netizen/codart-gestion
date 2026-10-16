@@ -14,12 +14,23 @@ export default function Home() {
   const [mostrarQR, setMostrarQR] = useState(false);
   const [registroExitoso, setRegistroExitoso] = useState(false);
 
-  // EDITAR INTEGRANTE (ADMIN)
+  // EDITAR INTEGRANTE (ADMIN - COMPLETO)
   const [mostrarModalEditarIntegrante, setMostrarModalEditarIntegrante] = useState(false);
   const [integranteEditando, setIntegranteEditando] = useState<any | null>(null);
   const [nombreEdit, setNombreEdit] = useState('');
-  const [instrumentoEdit, setInstrumentoEdit] = useState('');
+  const [tipoDocumentoEdit, setTipoDocumentoEdit] = useState('C.C.');
+  const [documentoEdit, setDocumentoEdit] = useState('');
+  const [edadEdit, setEdadEdit] = useState<string>('');
   const [celularEdit, setCelularEdit] = useState('');
+  const [gradoEscolarEdit, setGradoEscolarEdit] = useState('');
+  const [procesoEdit, setProcesoEdit] = useState('');
+  const [instrumentoEdit, setInstrumentoEdit] = useState('');
+  const [origenInstrumentoEdit, setOrigenInstrumentoEdit] = useState('Prestado (CODART)');
+  const [marcaSerieEdit, setMarcaSerieEdit] = useState('');
+  const [estadoInstrumentoEdit, setEstadoInstrumentoEdit] = useState('Excelente');
+  const [nombreAcudienteEdit, setNombreAcudienteEdit] = useState('');
+  const [documentoAcudienteEdit, setDocumentoAcudienteEdit] = useState('');
+  const [celularAcudienteEdit, setCelularAcudienteEdit] = useState('');
 
   // AUTH ADMIN
   const [sesionAdmin, setSesionAdmin] = useState<any>(null);
@@ -276,25 +287,50 @@ export default function Home() {
     }
   };
 
-  // MODIFICAR / EDITAR INTEGRANTE
+  // ABRIR MODAL EDITAR INTEGRANTE (COMPLETO)
   const abrirModalEditarIntegrante = (integrante: any) => {
     setIntegranteEditando(integrante);
     setNombreEdit(integrante.nombre || '');
-    setInstrumentoEdit(integrante.instrumento || '');
+    setTipoDocumentoEdit(integrante.tipo_documento || 'C.C.');
+    setDocumentoEdit(integrante.documento || '');
+    setEdadEdit(integrante.edad ? String(integrante.edad) : '');
     setCelularEdit(integrante.celular || '');
+    setGradoEscolarEdit(integrante.grado_escolar || '');
+    setProcesoEdit(integrante.proceso || 'Banda Filarmónica');
+    setInstrumentoEdit(integrante.instrumento || '');
+    setOrigenInstrumentoEdit(integrante.origen_instrumento || 'Prestado (CODART)');
+    setMarcaSerieEdit(integrante.marca_serie || '');
+    setEstadoInstrumentoEdit(integrante.estado_instrumento || 'Excelente');
+    setNombreAcudienteEdit(integrante.nombre_acudiente || '');
+    setDocumentoAcudienteEdit(integrante.documento_acudiente || '');
+    setCelularAcudienteEdit(integrante.celular_acudiente || '');
     setMostrarModalEditarIntegrante(true);
   };
 
+  // GUARDAR EDICIÓN INTEGRANTE
   const guardarEdicionIntegrante = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!sesionAdmin || !integranteEditando) return;
+
+    const numEdad = edadEdit ? parseInt(edadEdit, 10) : null;
 
     const { error } = await supabase
       .from('integrantes')
       .update({
         nombre: nombreEdit.trim(),
-        instrumento: instrumentoEdit.trim(),
+        tipo_documento: tipoDocumentoEdit,
+        documento: documentoEdit.trim(),
+        edad: numEdad,
         celular: celularEdit.trim(),
+        grado_escolar: procesoEdit === 'Proyecto de Música Escolar' ? gradoEscolarEdit.trim() : null,
+        proceso: procesoEdit,
+        instrumento: instrumentoEdit.trim(),
+        origen_instrumento: origenInstrumentoEdit,
+        marca_serie: marcaSerieEdit.trim() || 'No especificada',
+        estado_instrumento: estadoInstrumentoEdit,
+        nombre_acudiente: nombreAcudienteEdit.trim() || null,
+        documento_acudiente: documentoAcudienteEdit.trim() || null,
+        celular_acudiente: celularAcudienteEdit.trim() || null,
       })
       .eq('id', integranteEditando.id);
 
@@ -717,29 +753,96 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL EDITAR INTEGRANTE (ADMIN) */}
+      {/* MODAL EDITAR INTEGRANTE (ADMIN - COMPLETO) */}
       {mostrarModalEditarIntegrante && integranteEditando && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-md relative shadow-2xl">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white border border-slate-200 p-6 md:p-8 rounded-3xl w-full max-w-lg relative shadow-2xl my-8">
             <button type="button" onClick={() => setMostrarModalEditarIntegrante(false)} className="absolute top-4 right-4 text-slate-400 font-bold">✕</button>
-            <h2 className="text-xl font-bold text-slate-900 mb-1">✏️ Editar Integrante</h2>
-            <p className="text-xs text-slate-500 mb-4">Documento: {integranteEditando.documento}</p>
+            <h2 className="text-2xl font-bold text-slate-900 mb-1">✏️ Editar Datos del Integrante</h2>
+            <p className="text-xs text-slate-500 mb-6">Actualiza cualquier información de registro del músico.</p>
 
-            <form onSubmit={guardarEdicionIntegrante} className="space-y-3">
+            <form onSubmit={guardarEdicionIntegrante} className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
               <div>
-                <label className="text-xs font-bold text-slate-700 mb-1 block">Nombre Completo</label>
+                <label className="text-xs font-bold text-slate-700 mb-1 block">Proceso o Agrupación Musical</label>
+                <select value={procesoEdit} onChange={(e) => setProcesoEdit(e.target.value)} className={inputStyle}>
+                  <option value="Banda Filarmónica">Banda Filarmónica</option>
+                  <option value="Banda de Marcha">Banda de Marcha</option>
+                  <option value="Prebanda">Prebanda</option>
+                  <option value="Proyecto de Música Escolar">Proyecto de Música Escolar</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 mb-1 block">Nombre completo</label>
                 <input type="text" value={nombreEdit} onChange={(e) => setNombreEdit(e.target.value)} className={inputStyle} required />
               </div>
-              <div>
-                <label className="text-xs font-bold text-slate-700 mb-1 block">Instrumento</label>
-                <input type="text" value={instrumentoEdit} onChange={(e) => setInstrumentoEdit(e.target.value)} className={inputStyle} required />
+
+              <div className="grid grid-cols-3 gap-2">
+                <select value={tipoDocumentoEdit} onChange={(e) => setTipoDocumentoEdit(e.target.value)} className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-slate-800 font-semibold text-xs">
+                  <option value="C.C.">C.C.</option><option value="T.I.">T.I.</option><option value="R.C.">R.C.</option><option value="C.E.">C.E.</option><option value="P.A.">P.A.</option>
+                </select>
+                <input type="text" placeholder="Número documento" value={documentoEdit} onChange={(e) => setDocumentoEdit(e.target.value)} className="col-span-2 bg-slate-50 p-3 rounded-xl border border-slate-200 text-slate-800 text-sm" />
               </div>
-              <div>
-                <label className="text-xs font-bold text-slate-700 mb-1 block">Celular</label>
-                <input type="tel" value={celularEdit} onChange={(e) => setCelularEdit(e.target.value)} className={inputStyle} />
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 mb-1 block">Edad</label>
+                  <input type="number" min="1" max="100" value={edadEdit} onChange={(e) => setEdadEdit(e.target.value)} className={inputStyle} />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-700 mb-1 block">Celular</label>
+                  <input type="tel" value={celularEdit} onChange={(e) => setCelularEdit(e.target.value)} className={inputStyle} />
+                </div>
               </div>
-              <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl text-sm transition cursor-pointer mt-2">
-                Guardar Cambios
+
+              {procesoEdit === 'Proyecto de Música Escolar' && (
+                <div className="bg-indigo-50/70 border border-indigo-200 p-4 rounded-xl space-y-2">
+                  <label className="text-xs font-bold text-indigo-900 block">🎓 Grado Escolar</label>
+                  <input type="text" value={gradoEscolarEdit} onChange={(e) => setGradoEscolarEdit(e.target.value)} className="w-full bg-white p-2.5 rounded-lg border border-indigo-200 text-sm" />
+                </div>
+              )}
+
+              {esMenorDeEdad(edadEdit) && (
+                <div className="bg-amber-50/70 border border-amber-200 p-4 rounded-xl space-y-3">
+                  <span className="text-xs font-bold text-amber-800 block">👨‍👩‍👧 Datos del Acudiente</span>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 mb-0.5 block">Nombre del Acudiente</label>
+                    <input type="text" value={nombreAcudienteEdit} onChange={(e) => setNombreAcudienteEdit(e.target.value)} className="w-full bg-white p-2.5 rounded-lg border border-amber-200 text-xs" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 mb-0.5 block">Cédula Acudiente</label>
+                      <input type="text" value={documentoAcudienteEdit} onChange={(e) => setDocumentoAcudienteEdit(e.target.value)} className="w-full bg-white p-2.5 rounded-lg border border-amber-200 text-xs" />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 mb-0.5 block">Celular Acudiente</label>
+                      <input type="tel" value={celularAcudienteEdit} onChange={(e) => setCelularAcudienteEdit(e.target.value)} className="w-full bg-white p-2.5 rounded-lg border border-amber-200 text-xs" />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 mb-1 block">Instrumento</label>
+                  <input type="text" value={instrumentoEdit} onChange={(e) => setInstrumentoEdit(e.target.value)} className={inputStyle} required />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-700 mb-1 block">Origen Instrumento</label>
+                  <select value={origenInstrumentoEdit} onChange={(e) => setOrigenInstrumentoEdit(e.target.value)} className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs font-semibold w-full">
+                    <option value="Prestado (CODART)">🎵 Prestado (CODART)</option>
+                    <option value="Propio">⭐ Instrumento Propio</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 mb-1 block">Marca y Serie</label>
+                <input type="text" value={marcaSerieEdit} onChange={(e) => setMarcaSerieEdit(e.target.value)} className={inputStyle} />
+              </div>
+
+              <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold text-sm transition cursor-pointer mt-2">
+                Guardar Todos los Cambios
               </button>
             </form>
           </div>
@@ -1126,13 +1229,13 @@ export default function Home() {
               )}
               <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
                 {filtrados.map((integrante) => (
-                  <div key={integrante.id} className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex justify-between items-center">
+                  <div key={integrante.id} className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex justify-between items-center gap-2">
                     <div>
                       <h3 className="font-bold text-slate-900">{integrante.nombre}</h3>
-                      <p className="text-xs text-blue-600 font-semibold">🎵 {integrante.instrumento}</p>
+                      <p className="text-xs text-blue-600 font-semibold">🎵 {integrante.instrumento} | Doc: {integrante.tipo_documento} {integrante.documento}</p>
                     </div>
                     {sesionAdmin && (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 shrink-0">
                         <button onClick={() => abrirModalEditarIntegrante(integrante)} className="bg-blue-50 text-blue-600 text-xs font-bold px-3 py-1.5 rounded-lg cursor-pointer">✏️ Editar</button>
                         <button onClick={() => eliminarIntegrante(integrante.id)} className="bg-rose-50 text-rose-600 text-xs font-bold px-3 py-1.5 rounded-lg cursor-pointer">🗑️</button>
                       </div>
