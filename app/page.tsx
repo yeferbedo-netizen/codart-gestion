@@ -16,12 +16,18 @@ export default function Home() {
   const [registroExitoso, setRegistroExitoso] = useState(false);
 
   // AUTH ADMIN
-  const [sesion, setSesion] = useState<any>(null);
+  const [sesionAdmin, setSesionAdmin] = useState<any>(null);
   const [mostrarModalAdmin, setMostrarModalAdmin] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [emailAdmin, setEmailAdmin] = useState('');
+  const [passwordAdmin, setPasswordAdmin] = useState('');
 
-  // FORMULARIO INTEGRANTE
+  // AUTH INTEGRANTE (Contraseña universal: codart)
+  const [sesionIntegrante, setSesionIntegrante] = useState<any>(null);
+  const [mostrarModalIntegrante, setMostrarModalIntegrante] = useState(false);
+  const [documentoLogin, setDocumentoLogin] = useState('');
+  const [passwordLogin, setPasswordLogin] = useState('');
+
+  // FORMULARIO INSCRIPCIÓN
   const [procesoInscripcion, setProcesoInscripcion] = useState('Banda Filarmónica');
   const [nombre, setNombre] = useState('');
   const [tipoDocumento, setTipoDocumento] = useState('C.C.');
@@ -53,19 +59,18 @@ export default function Home() {
   const [editDocumentoAcudiente, setEditDocumentoAcudiente] = useState('');
   const [editCelularAcudiente, setEditCelularAcudiente] = useState('');
 
-  // ESTADOS DEL REPOSITORIO TIPO DRIVE
+  // REPOSITORIO TIPO DRIVE
   const [obras, setObras] = useState<any[]>([]);
   const [particelas, setParticelas] = useState<any[]>([]);
   const [busquedaPartitura, setBusquedaPartitura] = useState('');
   const [obraSeleccionadaDrive, setObraSeleccionadaDrive] = useState<any | null>(null);
 
-  // MODALES ESTILO DRIVE (ADMIN)
+  // MODALES DRIVE ADMIN
   const [mostrarModalNuevaCarpeta, setMostrarModalNuevaCarpeta] = useState(false);
   const [tituloCarpeta, setTituloCarpeta] = useState('');
   const [compositorCarpeta, setCompositorCarpeta] = useState('');
   const [linkAudioCarpeta, setLinkAudioCarpeta] = useState('');
 
-  // MODAL SUBIR ARCHIVOS MÚLTIPLES
   const [mostrarModalSubirArchivos, setMostrarModalSubirArchivos] = useState(false);
   const [archivosSeleccionados, setArchivosSeleccionados] = useState<File[]>([]);
   const [subiendoArchivos, setSubiendoArchivos] = useState(false);
@@ -82,22 +87,31 @@ export default function Home() {
 
     cargarDatos();
     cargarPartituras();
-    verificarSesion();
+    verificarSesiones();
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSesion(session);
+      setSesionAdmin(session);
     });
+
+    const integranteGuardado = localStorage.getItem('codart_integrante');
+    if (integranteGuardado) {
+      try {
+        setSesionIntegrante(JSON.parse(integranteGuardado));
+      } catch (e) {
+        localStorage.removeItem('codart_integrante');
+      }
+    }
 
     return () => {
       subscription.unsubscribe();
     };
   }, []);
 
-  const verificarSesion = async () => {
+  const verificarSesiones = async () => {
     const { data: { session } } = await supabase.auth.getSession();
-    setSesion(session);
+    setSesionAdmin(session);
   };
 
   const cargarDatos = async () => {
@@ -126,29 +140,67 @@ export default function Home() {
     if (dataObras) setObras(dataObras);
     if (dataParticelas) setParticelas(dataParticelas);
 
-    // Si tenemos una carpeta abierta, actualizamos su referencia local
     setObraSeleccionadaDrive((prev: any) => {
       if (!prev) return null;
-      const actualizada = dataObras?.find((o) => o.id === prev.id);
-      return actualizada || null;
+      return dataObras?.find((o) => o.id === prev.id) || null;
     });
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
+  // LOGIN ADMIN
+  const handleLoginAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({ email: emailAdmin, password: passwordAdmin });
     if (error) {
       alert('Error al iniciar sesión: ' + error.message);
     } else {
       setMostrarModalAdmin(false);
-      setEmail('');
-      setPassword('');
+      setEmailAdmin('');
+      setPasswordAdmin('');
     }
   };
 
-  const handleLogout = async () => {
+  const handleLogoutAdmin = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) alert('Error al cerrar sesión: ' + error.message);
+  };
+
+  // LOGIN INTEGRANTE (Documento + contraseña 'codart')
+  const handleLoginIntegrante = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!documentoLogin.trim() || !passwordLogin.trim()) return;
+
+    if (passwordLogin.trim().toLowerCase() !== 'codart') {
+      alert('Contraseña incorrecta. La contraseña universal para integrantes es "codart".');
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('integrantes')
+      .select('*')
+      .eq('documento', documentoLogin.trim())
+      .single();
+
+    if (error || !data) {
+      alert('No se encontró ningún integrante registrado con el documento ' + documentoLogin);
+      return;
+    }
+
+    if (data.estado_registro === 'Pendiente') {
+      alert('Tu registro aún está pendiente de aprobación por el Administrador de CODART.');
+      return;
+    }
+
+    setSesionIntegrante(data);
+    localStorage.setItem('codart_integrante', JSON.stringify(data));
+    setMostrarModalIntegrante(false);
+    setDocumentoLogin('');
+    setPasswordLogin('');
+    alert(`¡Bienvenido(a) de nuevo, ${data.nombre}!`);
+  };
+
+  const handleLogoutIntegrante = () => {
+    setSesionIntegrante(null);
+    localStorage.removeItem('codart_integrante');
   };
 
   const esMenorDeEdad = (valorEdad: string | number) => {
@@ -161,8 +213,8 @@ export default function Home() {
     return esMenorDeEdad(valorEdad);
   };
 
-  // MANEJO DE INTEGRANTES
-  const handleSubmit = async (e: React.FormEvent) => {
+  // INSCRIPCIÓN PÚBLICA
+  const handleSubmitInscripcion = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nombre.trim() || !instrumento.trim()) {
       alert('El nombre y el instrumento son obligatorios.');
@@ -170,8 +222,8 @@ export default function Home() {
     }
 
     const numEdad = edad ? parseInt(edad, 10) : null;
-    const estadoInicial = sesion ? 'Aprobado' : 'Pendiente';
-    const procesoFinal = sesion ? procesoActivo : procesoInscripcion;
+    const estadoInicial = sesionAdmin ? 'Aprobado' : 'Pendiente';
+    const procesoFinal = sesionAdmin ? procesoActivo : procesoInscripcion;
 
     const { data, error } = await supabase
       .from('integrantes')
@@ -218,7 +270,7 @@ export default function Home() {
       setCelularAcudiente('');
       setMostrarModalInscripcion(false);
 
-      if (!sesion) {
+      if (!sesionAdmin) {
         setRegistroExitoso(true);
       } else {
         alert('Integrante registrado y aprobado con éxito.');
@@ -227,7 +279,7 @@ export default function Home() {
   };
 
   const cambiarEstadoRegistro = async (id: string, nuevoEstado: string) => {
-    if (!sesion) return;
+    if (!sesionAdmin) return;
     if (nuevoEstado === 'Eliminar') {
       const confirmar = window.confirm('¿Deseas rechazar y eliminar esta solicitud de registro?');
       if (!confirmar) return;
@@ -285,7 +337,7 @@ export default function Home() {
   };
 
   const eliminarIntegrante = async (id: string) => {
-    if (!sesion) return;
+    if (!sesionAdmin) return;
     const confirmar = window.confirm('¿Seguro que deseas eliminar este integrante?');
     if (!confirmar) return;
     const { error } = await supabase.from('integrantes').delete().eq('id', id);
@@ -296,10 +348,10 @@ export default function Home() {
     setIntegrantes(integrantes.filter((i) => i.id !== id));
   };
 
-  // CREAR CARPETA (OBRA) - OPCIONALES
+  // CREAR CARPETA (SOLO ADMIN)
   const crearCarpetaObra = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!sesion) return;
+    if (!sesionAdmin) return;
     if (!tituloCarpeta.trim()) {
       alert('El nombre de la carpeta / obra es obligatorio.');
       return;
@@ -330,10 +382,10 @@ export default function Home() {
     }
   };
 
-  // SUBIR ARCHIVOS MÚLTIPLES TIPO DRIVE
+  // SUBIR ARCHIVOS (SOLO ADMIN)
   const subirArchivosSeleccionados = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!sesion || !obraSeleccionadaDrive || archivosSeleccionados.length === 0) return;
+    if (!sesionAdmin || !obraSeleccionadaDrive || archivosSeleccionados.length === 0) return;
 
     setSubiendoArchivos(true);
 
@@ -355,7 +407,6 @@ export default function Home() {
           .from('partituras')
           .getPublicUrl(storageData.path);
 
-        // Detectar familia e instrumento a partir del nombre del archivo por defecto
         let familiaDetectada = 'General / Score';
         const nombreLower = archivo.name.toLowerCase();
         if (nombreLower.includes('clarinete') || nombreLower.includes('saxo') || nombreLower.includes('flauta') || nombreLower.includes('oboe') || nombreLower.includes('fagot')) {
@@ -390,19 +441,17 @@ export default function Home() {
   };
 
   const eliminarCarpetaObra = async (id: string) => {
-    if (!sesion) return;
+    if (!sesionAdmin) return;
     const confirmar = window.confirm('¿Seguro que deseas eliminar esta carpeta y todos sus PDFs?');
     if (!confirmar) return;
 
     await supabase.from('obras').delete().eq('id', id);
-    if (obraSeleccionadaDrive?.id === id) {
-      setObraSeleccionadaDrive(null);
-    }
+    if (obraSeleccionadaDrive?.id === id) setObraSeleccionadaDrive(null);
     cargarPartituras();
   };
 
   const eliminarParticela = async (id: string) => {
-    if (!sesion) return;
+    if (!sesionAdmin) return;
     const confirmar = window.confirm('¿Deseas eliminar este archivo?');
     if (!confirmar) return;
 
@@ -494,7 +543,7 @@ export default function Home() {
             onClick={() => setMostrarModalInscripcion(true)}
             className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs md:text-sm font-bold px-4 py-2.5 rounded-xl shadow-xs transition cursor-pointer flex items-center gap-2"
           >
-            <span>📝</span> Inscripción / Registro
+            <span>📝</span> Inscripción
           </button>
 
           <button
@@ -505,25 +554,46 @@ export default function Home() {
             <span>🔗</span> Código QR
           </button>
 
-          {sesion ? (
+          {/* BOTONES DE ACCESO SEGÚN EL TIPO DE SESIÓN */}
+          {sesionAdmin ? (
             <div className="flex items-center gap-2">
-              <span className="text-xs text-blue-700 bg-blue-50 px-3 py-2.5 rounded-xl border border-blue-200 font-medium">
+              <span className="text-xs text-blue-700 bg-blue-50 px-3 py-2 rounded-xl border border-blue-200 font-bold">
                 Admin
               </span>
               <button
-                onClick={handleLogout}
-                className="bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold px-3 py-2.5 rounded-xl border border-rose-200 transition cursor-pointer"
+                onClick={handleLogoutAdmin}
+                className="bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold px-3 py-2 rounded-xl border border-rose-200 transition cursor-pointer"
               >
                 Cerrar Sesión
               </button>
             </div>
+          ) : sesionIntegrante ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-emerald-700 bg-emerald-50 px-3 py-2 rounded-xl border border-emerald-200 font-bold">
+                Músico: {sesionIntegrante.nombre}
+              </span>
+              <button
+                onClick={handleLogoutIntegrante}
+                className="bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold px-3 py-2 rounded-xl border border-rose-200 transition cursor-pointer"
+              >
+                Salir
+              </button>
+            </div>
           ) : (
-            <button
-              onClick={() => setMostrarModalAdmin(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm transition cursor-pointer flex items-center gap-1.5"
-            >
-              🔐 Acceso Admin
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setMostrarModalIntegrante(true)}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2.5 rounded-xl shadow-sm transition cursor-pointer flex items-center gap-1"
+              >
+                🎵 Iniciar Sesión (Músico)
+              </button>
+              <button
+                onClick={() => setMostrarModalAdmin(true)}
+                className="bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-3 py-2.5 rounded-xl shadow-sm transition cursor-pointer"
+              >
+                🔐 Admin
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -603,21 +673,74 @@ export default function Home() {
         </div>
       )}
 
+      {/* MODAL INICIO DE SESIÓN INTEGRANTE (DOCUMENTO + CONTRASEÑA 'codart') */}
+      {mostrarModalIntegrante && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-md relative shadow-2xl space-y-4">
+            <button
+              type="button"
+              onClick={() => setMostrarModalIntegrante(false)}
+              className="absolute top-4 right-4 text-slate-400 font-bold"
+            >
+              ✕
+            </button>
+            <h2 className="text-xl font-bold text-slate-900">🎵 Acceso para Integrantes</h2>
+            <p className="text-xs text-slate-500">
+              Ingresa tu número de documento registrado y la contraseña universal para consultar partituras.
+            </p>
+
+            <form onSubmit={handleLoginIntegrante} className="space-y-3">
+              <input
+                type="text"
+                placeholder="Número de documento"
+                value={documentoLogin}
+                onChange={(e) => setDocumentoLogin(e.target.value)}
+                className={inputStyle}
+                required
+              />
+              <input
+                type="password"
+                placeholder="Contraseña (codart)"
+                value={passwordLogin}
+                onChange={(e) => setPasswordLogin(e.target.value)}
+                className={inputStyle}
+                required
+              />
+              <button
+                type="submit"
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm transition cursor-pointer"
+              >
+                Ingresar al Repositorio
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL LOGIN ADMIN */}
+      {mostrarModalAdmin && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white border border-slate-200 p-6 rounded-2xl w-full max-w-md relative shadow-xl">
+            <button type="button" onClick={() => setMostrarModalAdmin(false)} className="absolute top-4 right-4 text-slate-400 font-bold">✕</button>
+            <h2 className="text-xl font-bold text-slate-900 mb-4">Acceso Administrador</h2>
+            <form onSubmit={handleLoginAdmin} className="space-y-4">
+              <input type="email" placeholder="Correo electrónico" value={emailAdmin} onChange={(e) => setEmailAdmin(e.target.value)} className={inputStyle} required />
+              <input type="password" placeholder="Contraseña" value={passwordAdmin} onChange={(e) => setPasswordAdmin(e.target.value)} className={inputStyle} required />
+              <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-3 rounded-xl text-sm">Ingresar</button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* MODAL INSCRIPCIÓN */}
       {mostrarModalInscripcion && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
           <div className="bg-white border border-slate-200 p-6 md:p-8 rounded-3xl w-full max-w-lg relative shadow-2xl my-8">
-            <button
-              type="button"
-              onClick={() => setMostrarModalInscripcion(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 cursor-pointer text-sm font-bold"
-            >
-              ✕
-            </button>
+            <button type="button" onClick={() => setMostrarModalInscripcion(false)} className="absolute top-4 right-4 text-slate-400 font-bold">✕</button>
             <h2 className="text-2xl font-bold text-slate-900 mb-1">Formulario de Inscripción</h2>
             <p className="text-xs text-slate-500 mb-6">Diligencia tus datos para inscribirte en las agrupaciones.</p>
 
-            <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+            <form onSubmit={handleSubmitInscripcion} className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
               <div>
                 <label className="text-xs font-bold text-slate-700 mb-1 block">Proceso o Agrupación Musical</label>
                 <select value={procesoInscripcion} onChange={(e) => setProcesoInscripcion(e.target.value)} className={inputStyle}>
@@ -690,22 +813,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL LOGIN ADMIN */}
-      {mostrarModalAdmin && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white border border-slate-200 p-6 rounded-2xl w-full max-w-md relative shadow-xl">
-            <button type="button" onClick={() => setMostrarModalAdmin(false)} className="absolute top-4 right-4 text-slate-400 font-bold">✕</button>
-            <h2 className="text-xl font-bold text-slate-900 mb-4">Acceso Administrador</h2>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <input type="email" placeholder="Correo electrónico" value={email} onChange={(e) => setEmail(e.target.value)} className={inputStyle} required />
-              <input type="password" placeholder="Contraseña" value={password} onChange={(e) => setPassword(e.target.value)} className={inputStyle} required />
-              <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-3 rounded-xl text-sm">Ingresar</button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL CREAR CARPETA ESTILO DRIVE (TODO OPCIONAL EXCEPTO TÍTULO) */}
+      {/* MODAL CREAR CARPETA (SOLO ADMIN) */}
       {mostrarModalNuevaCarpeta && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-md relative shadow-2xl">
@@ -734,16 +842,15 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL SUBIR MÚLTIPLES ARCHIVOS (DRAG & DROP O SELECTOR) */}
+      {/* MODAL SUBIR ARCHIVOS (SOLO ADMIN) */}
       {mostrarModalSubirArchivos && obraSeleccionadaDrive && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-lg relative shadow-2xl">
             <button type="button" onClick={() => { setMostrarModalSubirArchivos(false); setArchivosSeleccionados([]); }} className="absolute top-4 right-4 text-slate-400 font-bold">✕</button>
             <h2 className="text-xl font-bold text-slate-900 mb-1">📤 Subir Archivos a "{obraSeleccionadaDrive.titulo}"</h2>
-            <p className="text-xs text-slate-500 mb-4">Puedes arrastrar varios archivos PDF o seleccionarlos de tu dispositivo.</p>
+            <p className="text-xs text-slate-500 mb-4">Arrastra varios archivos PDF o selecciónalos de tu dispositivo.</p>
 
             <form onSubmit={subirArchivosSeleccionados} className="space-y-4">
-              {/* ZONA DRAG & DROP */}
               <div
                 onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                 onDragLeave={() => setIsDragging(false)}
@@ -761,8 +868,6 @@ export default function Home() {
               >
                 <span className="text-3xl block mb-2">📁</span>
                 <p className="text-xs font-bold text-slate-700 mb-1">Arrastra tus archivos PDF aquí</p>
-                <p className="text-[11px] text-slate-400 mb-3">o haz clic para explorar tu computador / celular</p>
-                
                 <input
                   type="file"
                   accept="application/pdf"
@@ -773,24 +878,17 @@ export default function Home() {
                       setArchivosSeleccionados(prev => [...prev, ...pdfs]);
                     }
                   }}
-                  className="mx-auto text-xs text-slate-500 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer"
+                  className="mx-auto text-xs text-slate-500 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer mt-2"
                 />
               </div>
 
-              {/* LISTA DE ARCHIVOS SELECCIONADOS */}
               {archivosSeleccionados.length > 0 && (
                 <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 max-h-40 overflow-y-auto space-y-1.5">
-                  <p className="text-[11px] font-bold text-slate-700">Archivos listos para subir ({archivosSeleccionados.length}):</p>
+                  <p className="text-[11px] font-bold text-slate-700">Archivos seleccionados ({archivosSeleccionados.length}):</p>
                   {archivosSeleccionados.map((file, idx) => (
                     <div key={idx} className="flex justify-between items-center bg-white p-2 rounded-lg border border-slate-200 text-xs">
                       <span className="truncate max-w-[280px]">📄 {file.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => setArchivosSeleccionados(archivosSeleccionados.filter((_, i) => i !== idx))}
-                        className="text-rose-600 font-bold px-1"
-                      >
-                        ✕
-                      </button>
+                      <button type="button" onClick={() => setArchivosSeleccionados(archivosSeleccionados.filter((_, i) => i !== idx))} className="text-rose-600 font-bold px-1">✕</button>
                     </div>
                   ))}
                 </div>
@@ -817,7 +915,7 @@ export default function Home() {
                 <span>📂</span> Repositorio Google Drive — {procesoActivo}
               </h2>
               <p className="text-xs text-slate-500">
-                {obraSeleccionadaDrive ? `Estás dentro de la carpeta: "${obraSeleccionadaDrive.titulo}"` : 'Explora las carpetas de obras o crea una nueva.'}
+                {obraSeleccionadaDrive ? `Carpeta: "${obraSeleccionadaDrive.titulo}"` : sesionIntegrante ? `Hola ${sesionIntegrante.nombre}, consulta y descarga tus partituras.` : 'Explora las carpetas de obras musicales.'}
               </p>
             </div>
 
@@ -835,7 +933,7 @@ export default function Home() {
                 </div>
               )}
 
-              {sesion && !obraSeleccionadaDrive && (
+              {sesionAdmin && !obraSeleccionadaDrive && (
                 <button
                   onClick={() => setMostrarModalNuevaCarpeta(true)}
                   className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-xs transition cursor-pointer whitespace-nowrap flex items-center gap-1.5"
@@ -855,15 +953,12 @@ export default function Home() {
             </div>
           </div>
 
-          {/* SI NO HAY CARPETA SELECCIONADA: MOSTRAR GRILLA DE CARPETAS */}
           {!obraSeleccionadaDrive ? (
             obrasFiltradas.length === 0 ? (
               <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-400 space-y-2">
                 <p className="text-4xl">📁</p>
                 <p className="font-semibold text-slate-700 text-sm">No hay carpetas en {procesoActivo}</p>
-                <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                  {sesion ? 'Haz clic en "Nueva Carpeta" para organizar tu repertorio.' : 'Aún no se han creado carpetas musicales.'}
-                </p>
+                <p className="text-xs text-slate-500">Aún no se han añadido carpetas musicales.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -879,7 +974,7 @@ export default function Home() {
                       <div>
                         <div className="flex justify-between items-start mb-3">
                           <span className="text-3xl">📁</span>
-                          {sesion && (
+                          {sesionAdmin && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -910,7 +1005,6 @@ export default function Home() {
               </div>
             )
           ) : (
-            /* SI ESTÁ DENTRO DE UNA CARPETA: VISTA DE ARCHIVOS TIPO DRIVE */
             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b border-slate-100">
                 <div>
@@ -927,7 +1021,7 @@ export default function Home() {
                   </p>
                 </div>
 
-                {sesion && (
+                {sesionAdmin && (
                   <button
                     onClick={() => setMostrarModalSubirArchivos(true)}
                     className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition shadow-xs cursor-pointer flex items-center gap-1.5"
@@ -937,12 +1031,11 @@ export default function Home() {
                 )}
               </div>
 
-              {/* LISTA DE ARCHIVOS DENTRO DE LA CARPETA */}
               {particelas.filter((p) => p.obra_id === obraSeleccionadaDrive.id).length === 0 ? (
                 <div className="text-center py-16 text-slate-400 space-y-2">
                   <p className="text-3xl">📄</p>
                   <p className="font-semibold text-slate-700 text-sm">Esta carpeta está vacía</p>
-                  <p className="text-xs text-slate-500">Sube tus partituras en PDF para que los integrantes puedan consultarlas.</p>
+                  <p className="text-xs text-slate-500">No hay partituras subidas en esta obra.</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
@@ -965,7 +1058,7 @@ export default function Home() {
                           >
                             👁️ Ver PDF
                           </a>
-                          {sesion && (
+                          {sesionAdmin && (
                             <button
                               onClick={() => eliminarParticela(archivo.id)}
                               className="text-rose-600 font-bold p-1"
@@ -987,7 +1080,7 @@ export default function Home() {
       {/* VISTA 2: INTEGRANTES */}
       {moduloActivo === 'integrantes' && (
         <div className="space-y-8">
-          {sesion && pendientes.length > 0 && (
+          {sesionAdmin && pendientes.length > 0 && (
             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 shadow-sm">
               <h2 className="text-lg font-bold text-amber-900 mb-4 flex items-center gap-2">
                 <span>🔔</span> Solicitudes Pendientes ({pendientes.length})
@@ -1023,29 +1116,30 @@ export default function Home() {
                 <h2 className="text-lg font-bold text-slate-900">Integrantes Oficiales ({filtrados.length})</h2>
               </div>
 
-              {sesion && (
+              {sesionAdmin && (
                 <div className="relative mb-4">
                   <input type="text" placeholder="Buscar integrante..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} className="w-full bg-slate-50 pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none" />
                   <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">🔍</span>
                 </div>
               )}
 
-              {!sesion ? (
+              {!sesionAdmin ? (
                 <div className="text-center py-20 text-slate-400 space-y-2">
                   <p className="text-4xl">🔒</p>
                   <p className="font-semibold text-slate-700">Información Protegida</p>
+                  <p className="text-xs text-slate-500">Solo el Administrador puede visualizar la lista completa.</p>
                 </div>
               ) : filtrados.length === 0 ? (
                 <div className="text-center py-10 text-slate-400 text-sm">No hay integrantes registrados.</div>
               ) : (
                 <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
                   {filtrados.map((integrante) => (
-                    <div key={integrante.id} className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex justify-between">
+                    <div key={integrante.id} className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex justify-between items-center">
                       <div>
                         <h3 className="font-bold text-slate-900">{integrante.nombre}</h3>
-                        <p className="text-sm text-blue-600 font-semibold">🎵 {integrante.instrumento}</p>
+                        <p className="text-xs text-blue-600 font-semibold">🎵 {integrante.instrumento}</p>
                       </div>
-                      <button onClick={() => eliminarIntegrante(integrante.id)} className="bg-rose-50 text-rose-600 text-xs font-bold px-2.5 py-1.5 rounded-lg h-fit">🗑️</button>
+                      <button onClick={() => eliminarIntegrante(integrante.id)} className="bg-rose-50 text-rose-600 text-xs font-bold px-2.5 py-1.5 rounded-lg">🗑️</button>
                     </div>
                   ))}
                 </div>
