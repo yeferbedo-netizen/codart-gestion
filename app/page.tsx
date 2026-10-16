@@ -50,11 +50,15 @@ export default function Home() {
   const [editDocumentoAcudiente, setEditDocumentoAcudiente] = useState('');
   const [editCelularAcudiente, setEditCelularAcudiente] = useState('');
 
-  // LÓGICA DEL CALENDARIO
-  const hoy = new Date();
-  const [fechaCalendario, setFechaCalendario] = useState(new Date());
+  // LÓGICA DEL CALENDARIO (Manejada de forma segura para Next.js)
+  const [hoy, setHoy] = useState<Date | null>(null);
+  const [fechaCalendario, setFechaCalendario] = useState<Date | null>(null);
 
   useEffect(() => {
+    const ahora = new Date();
+    setHoy(ahora);
+    setFechaCalendario(ahora);
+
     cargarDatos();
     verificarSesion();
 
@@ -267,7 +271,8 @@ export default function Home() {
   });
 
   // HELPER PARA CONSTRUIR EL CALENDARIO
-  const obtenerDiasDelMes = (fecha: Date) => {
+  const obtenerDiasDelMes = (fecha: Date | null) => {
+    if (!fecha) return [];
     const anio = fecha.getFullYear();
     const mes = fecha.getMonth();
     const primerDia = new Date(anio, mes, 1).getDay();
@@ -291,6 +296,7 @@ export default function Home() {
   ];
 
   const cambiarMes = (delta: number) => {
+    if (!fechaCalendario) return;
     const nueva = new Date(fechaCalendario.getFullYear(), fechaCalendario.getMonth() + delta, 1);
     setFechaCalendario(nueva);
   };
@@ -914,25 +920,27 @@ export default function Home() {
               Calendario de Eventos y Ensayos
             </h2>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => cambiarMes(-1)}
-              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer"
-              title="Mes anterior"
-            >
-              ◀
-            </button>
-            <span className="text-sm font-bold text-blue-600 min-w-[130px] text-center">
-              {nombresMeses[fechaCalendario.getMonth()]} {fechaCalendario.getFullYear()}
-            </span>
-            <button
-              onClick={() => cambiarMes(1)}
-              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer"
-              title="Mes siguiente"
-            >
-              ▶
-            </button>
-          </div>
+          {fechaCalendario && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => cambiarMes(-1)}
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer"
+                title="Mes anterior"
+              >
+                ◀
+              </button>
+              <span className="text-sm font-bold text-blue-600 min-w-[130px] text-center">
+                {nombresMeses[fechaCalendario.getMonth()]} {fechaCalendario.getFullYear()}
+              </span>
+              <button
+                onClick={() => cambiarMes(1)}
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer"
+                title="Mes siguiente"
+              >
+                ▶
+              </button>
+            </div>
+          )}
         </div>
 
         {/* ENCABEZADOS DE DÍAS */}
@@ -954,6 +962,8 @@ export default function Home() {
             }
 
             const esHoy =
+              hoy &&
+              fechaCalendario &&
               dia === hoy.getDate() &&
               fechaCalendario.getMonth() === hoy.getMonth() &&
               fechaCalendario.getFullYear() === hoy.getFullYear();
