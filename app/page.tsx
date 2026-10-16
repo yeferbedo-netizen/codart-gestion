@@ -24,6 +24,7 @@ export default function Home() {
   const [edad, setEdad] = useState<string>('');
   const [celular, setCelular] = useState('');
   const [instrumento, setInstrumento] = useState('');
+  const [origenInstrumento, setOrigenInstrumento] = useState('Prestado (CODART)');
   const [marcaSerie, setMarcaSerie] = useState('');
   const [estadoInstrumento, setEstadoInstrumento] = useState('Excelente');
 
@@ -40,6 +41,7 @@ export default function Home() {
   const [editEdad, setEditEdad] = useState<string>('');
   const [editCelular, setEditCelular] = useState('');
   const [editInstrumento, setEditInstrumento] = useState('');
+  const [editOrigenInstrumento, setEditOrigenInstrumento] = useState('Prestado (CODART)');
   const [editMarcaSerie, setEditMarcaSerie] = useState('');
   const [editEstadoInstrumento, setEditEstadoInstrumento] = useState('Excelente');
   const [editNombreAcudiente, setEditNombreAcudiente] = useState('');
@@ -141,6 +143,7 @@ export default function Home() {
           celular: celular.trim(),
           proceso: procesoActivo,
           instrumento: instrumento.trim(),
+          origen_instrumento: origenInstrumento,
           marca_serie: marcaSerie.trim() || 'No especificada',
           estado_instrumento: estadoInstrumento,
           nombre_acudiente: esMenor ? nombreAcudiente.trim() : null,
@@ -163,6 +166,7 @@ export default function Home() {
       setEdad('');
       setCelular('');
       setInstrumento('');
+      setOrigenInstrumento('Prestado (CODART)');
       setMarcaSerie('');
       setEstadoInstrumento('Excelente');
       setNombreAcudiente('');
@@ -179,6 +183,7 @@ export default function Home() {
     setEditEdad(integrante.edad !== null && integrante.edad !== undefined ? String(integrante.edad) : '');
     setEditCelular(integrante.celular || '');
     setEditInstrumento(integrante.instrumento || '');
+    setEditOrigenInstrumento(integrante.origen_instrumento || 'Prestado (CODART)');
     setEditMarcaSerie(integrante.marca_serie || '');
     setEditEstadoInstrumento(integrante.estado_instrumento || 'Excelente');
     setEditNombreAcudiente(integrante.nombre_acudiente || '');
@@ -199,6 +204,7 @@ export default function Home() {
         edad: numEdad,
         celular: editCelular.trim(),
         instrumento: editInstrumento.trim(),
+        origen_instrumento: editOrigenInstrumento,
         marca_serie: editMarcaSerie.trim(),
         estado_instrumento: editEstadoInstrumento,
         nombre_acudiente: esMenor ? editNombreAcudiente.trim() : null,
@@ -260,7 +266,6 @@ export default function Home() {
     const primerDia = new Date(anio, mes, 1).getDay();
     const totalDias = new Date(anio, mes + 1, 0).getDate();
 
-    // Ajustar el primer día para que la semana empiece en Lunes (0 = Lunes, 6 = Domingo)
     const inicioAjustado = primerDia === 0 ? 6 : primerDia - 1;
 
     const dias = [];
@@ -498,14 +503,26 @@ export default function Home() {
               </div>
             )}
 
-            <input
-              type="text"
-              placeholder="Instrumento"
-              value={instrumento}
-              onChange={(e) => setInstrumento(e.target.value)}
-              className={inputStyle}
-              required
-            />
+            {/* CAMPOS DE INSTRUMENTO Y SU TIPO (PRESTADO / PROPIO) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <input
+                type="text"
+                placeholder="Instrumento (ej. Clarinete)"
+                value={instrumento}
+                onChange={(e) => setInstrumento(e.target.value)}
+                className={inputStyle}
+                required
+              />
+              <select
+                value={origenInstrumento}
+                onChange={(e) => setOrigenInstrumento(e.target.value)}
+                className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-slate-800 outline-none focus:border-blue-600 font-semibold text-sm"
+              >
+                <option value="Prestado (CODART)">🎵 Prestado (CODART)</option>
+                <option value="Propio">⭐ Instrumento Propio</option>
+              </select>
+            </div>
+
             <input
               type="text"
               placeholder="Marca y Serie"
@@ -678,13 +695,24 @@ export default function Home() {
                         </div>
                       )}
 
-                      <input
-                        type="text"
-                        value={editInstrumento}
-                        onChange={(e) => setEditInstrumento(e.target.value)}
-                        className={editInputStyle}
-                        placeholder="Instrumento"
-                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="text"
+                          value={editInstrumento}
+                          onChange={(e) => setEditInstrumento(e.target.value)}
+                          className={editInputStyle}
+                          placeholder="Instrumento"
+                        />
+                        <select
+                          value={editOrigenInstrumento}
+                          onChange={(e) => setEditOrigenInstrumento(e.target.value)}
+                          className="bg-slate-50 p-2 rounded-lg border border-slate-200 text-slate-800 text-xs outline-none focus:border-blue-600 mb-2 font-semibold"
+                        >
+                          <option value="Prestado (CODART)">Prestado (CODART)</option>
+                          <option value="Propio">Instrumento Propio</option>
+                        </select>
+                      </div>
+
                       <input
                         type="text"
                         value={editMarcaSerie}
@@ -738,9 +766,20 @@ export default function Home() {
                           )}
                         </div>
 
-                        <p className="text-sm text-blue-600 font-semibold">
-                          🎵 {integrante.instrumento}
-                        </p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm text-blue-600 font-semibold">
+                            🎵 {integrante.instrumento}
+                          </p>
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                              integrante.origen_instrumento === 'Propio'
+                                ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                                : 'bg-rose-50 text-rose-700 border-rose-200'
+                            }`}
+                          >
+                            {integrante.origen_instrumento || 'Prestado (CODART)'}
+                          </span>
+                        </div>
 
                         {integrante.documento && (
                           <p className="text-xs text-slate-500">
