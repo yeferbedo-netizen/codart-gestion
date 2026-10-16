@@ -50,7 +50,7 @@ export default function Home() {
   const [editDocumentoAcudiente, setEditDocumentoAcudiente] = useState('');
   const [editCelularAcudiente, setEditCelularAcudiente] = useState('');
 
-  // LÓGICA DEL CALENDARIO (Manejada de forma segura para Next.js)
+  // LÓGICA DEL CALENDARIO
   const [hoy, setHoy] = useState<Date | null>(null);
   const [fechaCalendario, setFechaCalendario] = useState<Date | null>(null);
 
@@ -124,6 +124,12 @@ export default function Home() {
     return !isNaN(num) && num > 0 && num < 18;
   };
 
+  const esAcudienteObligatorio = (valorEdad: string | number) => {
+    // Si estamos en Música Escolar, NO es obligatorio el acudiente
+    if (procesoActivo === 'Proyecto de Música Escolar') return false;
+    return esMenorDeEdad(valorEdad);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!sesion) {
@@ -136,7 +142,6 @@ export default function Home() {
     }
 
     const numEdad = edad ? parseInt(edad, 10) : null;
-    const esMenor = numEdad !== null && numEdad < 18;
 
     const { data, error } = await supabase
       .from('integrantes')
@@ -153,9 +158,9 @@ export default function Home() {
           origen_instrumento: origenInstrumento,
           marca_serie: marcaSerie.trim() || 'No especificada',
           estado_instrumento: estadoInstrumento,
-          nombre_acudiente: esMenor ? nombreAcudiente.trim() : null,
-          documento_acudiente: esMenor ? documentoAcudiente.trim() : null,
-          celular_acudiente: esMenor ? celularAcudiente.trim() : null,
+          nombre_acudiente: nombreAcudiente.trim() || null,
+          documento_acudiente: documentoAcudiente.trim() || null,
+          celular_acudiente: celularAcudiente.trim() || null,
         },
       ])
       .select();
@@ -202,7 +207,6 @@ export default function Home() {
 
   const guardarEdicion = async (id: string) => {
     const numEdad = editEdad ? parseInt(editEdad, 10) : null;
-    const esMenor = numEdad !== null && numEdad < 18;
 
     const { error } = await supabase
       .from('integrantes')
@@ -217,9 +221,9 @@ export default function Home() {
         origen_instrumento: editOrigenInstrumento,
         marca_serie: editMarcaSerie.trim(),
         estado_instrumento: editEstadoInstrumento,
-        nombre_acudiente: esMenor ? editNombreAcudiente.trim() : null,
-        documento_acudiente: esMenor ? editDocumentoAcudiente.trim() : null,
-        celular_acudiente: esMenor ? editCelularAcudiente.trim() : null,
+        nombre_acudiente: editNombreAcudiente.trim() || null,
+        documento_acudiente: editDocumentoAcudiente.trim() || null,
+        celular_acudiente: editCelularAcudiente.trim() || null,
       })
       .eq('id', id);
 
@@ -500,10 +504,16 @@ export default function Home() {
               <div className="bg-amber-50/70 border border-amber-200 p-4 rounded-xl space-y-3 animate-fade-in">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-amber-800 flex items-center gap-1">
-                    👨‍👩‍👧 Datos del Acudiente (Menor de edad)
+                    👨‍👩‍👧 Datos del Acudiente {procesoActivo === 'Proyecto de Música Escolar' ? '(Opcional)' : '(Menor de edad)'}
                   </span>
-                  <span className="text-[10px] bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full font-semibold">
-                    Requerido
+                  <span
+                    className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                      esAcudienteObligatorio(edad)
+                        ? 'bg-amber-200 text-amber-900'
+                        : 'bg-slate-200 text-slate-700'
+                    }`}
+                  >
+                    {esAcudienteObligatorio(edad) ? 'Requerido' : 'Opcional'}
                   </span>
                 </div>
                 <input
@@ -512,7 +522,7 @@ export default function Home() {
                   value={nombreAcudiente}
                   onChange={(e) => setNombreAcudiente(e.target.value)}
                   className="w-full bg-white p-2.5 rounded-lg border border-amber-200 text-slate-800 text-xs outline-none focus:border-amber-500"
-                  required={esMenorDeEdad(edad)}
+                  required={esAcudienteObligatorio(edad)}
                 />
                 <div className="grid grid-cols-2 gap-2">
                   <input
