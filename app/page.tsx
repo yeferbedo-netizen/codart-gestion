@@ -14,6 +14,13 @@ export default function Home() {
   const [mostrarQR, setMostrarQR] = useState(false);
   const [registroExitoso, setRegistroExitoso] = useState(false);
 
+  // EDITAR INTEGRANTE (ADMIN)
+  const [mostrarModalEditarIntegrante, setMostrarModalEditarIntegrante] = useState(false);
+  const [integranteEditando, setIntegranteEditando] = useState<any | null>(null);
+  const [nombreEdit, setNombreEdit] = useState('');
+  const [instrumentoEdit, setInstrumentoEdit] = useState('');
+  const [celularEdit, setCelularEdit] = useState('');
+
   // AUTH ADMIN
   const [sesionAdmin, setSesionAdmin] = useState<any>(null);
   const [mostrarModalAdmin, setMostrarModalAdmin] = useState(false);
@@ -48,11 +55,17 @@ export default function Home() {
   const [busquedaPartitura, setBusquedaPartitura] = useState('');
   const [obraSeleccionadaDrive, setObraSeleccionadaDrive] = useState<any | null>(null);
 
-  // MODALES DRIVE ADMIN
+  // MODALES DRIVE ADMIN (CREAR Y EDITAR CARPETA)
   const [mostrarModalNuevaCarpeta, setMostrarModalNuevaCarpeta] = useState(false);
   const [tituloCarpeta, setTituloCarpeta] = useState('');
   const [compositorCarpeta, setCompositorCarpeta] = useState('');
   const [linkAudioCarpeta, setLinkAudioCarpeta] = useState('');
+
+  const [mostrarModalEditarCarpeta, setMostrarModalEditarCarpeta] = useState(false);
+  const [carpetaEditando, setCarpetaEditando] = useState<any | null>(null);
+  const [tituloCarpetaEdit, setTituloCarpetaEdit] = useState('');
+  const [compositorCarpetaEdit, setCompositorCarpetaEdit] = useState('');
+  const [linkAudioCarpetaEdit, setLinkAudioCarpetaEdit] = useState('');
 
   const [mostrarModalSubirArchivos, setMostrarModalSubirArchivos] = useState(false);
   const [archivosSeleccionados, setArchivosSeleccionados] = useState<File[]>([]);
@@ -263,6 +276,39 @@ export default function Home() {
     }
   };
 
+  // MODIFICAR / EDITAR INTEGRANTE
+  const abrirModalEditarIntegrante = (integrante: any) => {
+    setIntegranteEditando(integrante);
+    setNombreEdit(integrante.nombre || '');
+    setInstrumentoEdit(integrante.instrumento || '');
+    setCelularEdit(integrante.celular || '');
+    setMostrarModalEditarIntegrante(true);
+  };
+
+  const guardarEdicionIntegrante = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!sesionAdmin || !integranteEditando) return;
+
+    const { error } = await supabase
+      .from('integrantes')
+      .update({
+        nombre: nombreEdit.trim(),
+        instrumento: instrumentoEdit.trim(),
+        celular: celularEdit.trim(),
+      })
+      .eq('id', integranteEditando.id);
+
+    if (error) {
+      alert('Error al actualizar integrante: ' + error.message);
+      return;
+    }
+
+    setMostrarModalEditarIntegrante(false);
+    setIntegranteEditando(null);
+    cargarDatos();
+    alert('¡Integrante actualizado con éxito!');
+  };
+
   const eliminarIntegrante = async (id: string) => {
     if (!sesionAdmin) return;
     const confirmar = window.confirm('¿Seguro que deseas eliminar este integrante?');
@@ -307,6 +353,39 @@ export default function Home() {
     if (data && data[0]) {
       setObraSeleccionadaDrive(data[0]);
     }
+  };
+
+  // EDITAR CARPETA / OBRA (SOLO ADMIN)
+  const abrirModalEditarCarpeta = (obra: any) => {
+    setCarpetaEditando(obra);
+    setTituloCarpetaEdit(obra.titulo || '');
+    setCompositorCarpetaEdit(obra.compositor_arreglista || '');
+    setLinkAudioCarpetaEdit(obra.link_audio || '');
+    setMostrarModalEditarCarpeta(true);
+  };
+
+  const guardarEdicionCarpeta = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!sesionAdmin || !carpetaEditando) return;
+
+    const { error } = await supabase
+      .from('obras')
+      .update({
+        titulo: tituloCarpetaEdit.trim(),
+        compositor_arreglista: compositorCarpetaEdit.trim() || 'No especificado',
+        link_audio: linkAudioCarpetaEdit.trim() || null,
+      })
+      .eq('id', carpetaEditando.id);
+
+    if (error) {
+      alert('Error al actualizar la carpeta: ' + error.message);
+      return;
+    }
+
+    setMostrarModalEditarCarpeta(false);
+    setCarpetaEditando(null);
+    cargarPartituras();
+    alert('¡Carpeta actualizada con éxito!');
   };
 
   // SUBIR ARCHIVOS (SOLO ADMIN)
@@ -638,6 +717,35 @@ export default function Home() {
         </div>
       )}
 
+      {/* MODAL EDITAR INTEGRANTE (ADMIN) */}
+      {mostrarModalEditarIntegrante && integranteEditando && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-md relative shadow-2xl">
+            <button type="button" onClick={() => setMostrarModalEditarIntegrante(false)} className="absolute top-4 right-4 text-slate-400 font-bold">✕</button>
+            <h2 className="text-xl font-bold text-slate-900 mb-1">✏️ Editar Integrante</h2>
+            <p className="text-xs text-slate-500 mb-4">Documento: {integranteEditando.documento}</p>
+
+            <form onSubmit={guardarEdicionIntegrante} className="space-y-3">
+              <div>
+                <label className="text-xs font-bold text-slate-700 mb-1 block">Nombre Completo</label>
+                <input type="text" value={nombreEdit} onChange={(e) => setNombreEdit(e.target.value)} className={inputStyle} required />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-700 mb-1 block">Instrumento</label>
+                <input type="text" value={instrumentoEdit} onChange={(e) => setInstrumentoEdit(e.target.value)} className={inputStyle} required />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-700 mb-1 block">Celular</label>
+                <input type="tel" value={celularEdit} onChange={(e) => setCelularEdit(e.target.value)} className={inputStyle} />
+              </div>
+              <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl text-sm transition cursor-pointer mt-2">
+                Guardar Cambios
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* CONFIRMACIÓN REGISTRO */}
       {registroExitoso && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
@@ -673,6 +781,35 @@ export default function Home() {
               </div>
               <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl text-sm transition cursor-pointer mt-2">
                 Crear Carpeta
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL EDITAR CARPETA / OBRA (SOLO ADMIN) */}
+      {mostrarModalEditarCarpeta && carpetaEditando && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-md relative shadow-2xl">
+            <button type="button" onClick={() => setMostrarModalEditarCarpeta(false)} className="absolute top-4 right-4 text-slate-400 font-bold">✕</button>
+            <h2 className="text-xl font-bold text-slate-900 mb-1">✏️ Editar Carpeta / Obra</h2>
+            <p className="text-xs text-slate-500 mb-4">Modifica los detalles de la obra musical.</p>
+
+            <form onSubmit={guardarEdicionCarpeta} className="space-y-3">
+              <div>
+                <label className="text-xs font-bold text-slate-700 mb-1 block">Título de la Obra *</label>
+                <input type="text" value={tituloCarpetaEdit} onChange={(e) => setTituloCarpetaEdit(e.target.value)} className={inputStyle} required />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-700 mb-1 block">Compositor / Arreglista</label>
+                <input type="text" value={compositorCarpetaEdit} onChange={(e) => setCompositorCarpetaEdit(e.target.value)} className={inputStyle} />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-700 mb-1 block">Enlace de Audio / YouTube</label>
+                <input type="url" value={linkAudioCarpetaEdit} onChange={(e) => setLinkAudioCarpetaEdit(e.target.value)} className={inputStyle} />
+              </div>
+              <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl text-sm transition cursor-pointer mt-2">
+                Guardar Cambios
               </button>
             </form>
           </div>
@@ -869,16 +1006,28 @@ export default function Home() {
                             <div className="flex justify-between items-start mb-3">
                               <span className="text-3xl">📁</span>
                               {sesionAdmin && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    eliminarCarpetaObra(obra.id);
-                                  }}
-                                  className="text-slate-300 hover:text-rose-600 font-bold p-1 transition"
-                                  title="Eliminar carpeta"
-                                >
-                                  🗑️
-                                </button>
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      abrirModalEditarCarpeta(obra);
+                                    }}
+                                    className="text-slate-400 hover:text-blue-600 font-bold p-1 transition"
+                                    title="Editar carpeta"
+                                  >
+                                    ✏️
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      eliminarCarpetaObra(obra.id);
+                                    }}
+                                    className="text-slate-400 hover:text-rose-600 font-bold p-1 transition"
+                                    title="Eliminar carpeta"
+                                  >
+                                    🗑️
+                                  </button>
+                                </div>
                               )}
                             </div>
                             <h3 className="font-bold text-slate-900 text-sm group-hover:text-blue-600 transition truncate">
@@ -915,12 +1064,20 @@ export default function Home() {
                     </div>
 
                     {sesionAdmin && (
-                      <button
-                        onClick={() => setMostrarModalSubirArchivos(true)}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition shadow-xs cursor-pointer flex items-center gap-1.5"
-                      >
-                        <span>📤</span> Subir Archivos PDF
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => abrirModalEditarCarpeta(obraSeleccionadaDrive)}
+                          className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-1"
+                        >
+                          ✏️ Editar Obra
+                        </button>
+                        <button
+                          onClick={() => setMostrarModalSubirArchivos(true)}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition shadow-xs cursor-pointer flex items-center gap-1.5"
+                        >
+                          <span>📤</span> Subir Archivos PDF
+                        </button>
+                      </div>
                     )}
                   </div>
 
@@ -975,7 +1132,10 @@ export default function Home() {
                       <p className="text-xs text-blue-600 font-semibold">🎵 {integrante.instrumento}</p>
                     </div>
                     {sesionAdmin && (
-                      <button onClick={() => eliminarIntegrante(integrante.id)} className="bg-rose-50 text-rose-600 text-xs font-bold px-2.5 py-1.5 rounded-lg">🗑️</button>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => abrirModalEditarIntegrante(integrante)} className="bg-blue-50 text-blue-600 text-xs font-bold px-3 py-1.5 rounded-lg cursor-pointer">✏️ Editar</button>
+                        <button onClick={() => eliminarIntegrante(integrante.id)} className="bg-rose-50 text-rose-600 text-xs font-bold px-3 py-1.5 rounded-lg cursor-pointer">🗑️</button>
+                      </div>
                     )}
                   </div>
                 ))}
