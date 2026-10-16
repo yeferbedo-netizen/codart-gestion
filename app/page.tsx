@@ -1,20 +1,4 @@
-¡Entendido perfectamente! La primera versión que pusimos tenía w-12 h-12 (48px). Para que quede al doble de ese tamaño, la medida exacta que necesitas en Tailwind CSS es w-24 h-24 (96px x 96px) o w-28 h-28 (112px x 112px).   Aquí tienes el bloque del encabezado actualizado con el logo al doble de grande:TypeScript<div className="flex items-center gap-4">
-  {/* LOGO DE CODART (AL DOBLE DE TAMAÑO) */}
-  <img 
-    src="/logo.jpg" 
-    alt="Logo CODART" 
-    className="w-24 h-24 object-contain rounded-xl"
-  />
-  <div>
-    <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
-      CODART
-    </h1>
-    <p className="text-sm text-slate-500 font-medium">
-      Gestión de Integrantes e Instrumentos
-    </p>
-  </div>
-</div>
-Y si prefieres reemplazar todo tu archivo app/page.tsx de una vez:TypeScript'use client';
+'use client';
 
 import React, { useEffect, useState } from 'react';
 import { supabase } from './lib/supabase';
@@ -37,20 +21,30 @@ export default function Home() {
   const [nombre, setNombre] = useState('');
   const [tipoDocumento, setTipoDocumento] = useState('C.C.');
   const [documento, setDocumento] = useState('');
+  const [edad, setEdad] = useState<string>('');
   const [celular, setCelular] = useState('');
   const [instrumento, setInstrumento] = useState('');
   const [marcaSerie, setMarcaSerie] = useState('');
   const [estadoInstrumento, setEstadoInstrumento] = useState('Excelente');
+
+  // Datos Acudiente (Creación)
+  const [nombreAcudiente, setNombreAcudiente] = useState('');
+  const [documentoAcudiente, setDocumentoAcudiente] = useState('');
+  const [celularAcudiente, setCelularAcudiente] = useState('');
 
   // ESTADOS PARA EDICIÓN
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [editNombre, setEditNombre] = useState('');
   const [editTipoDocumento, setEditTipoDocumento] = useState('C.C.');
   const [editDocumento, setEditDocumento] = useState('');
+  const [editEdad, setEditEdad] = useState<string>('');
   const [editCelular, setEditCelular] = useState('');
   const [editInstrumento, setEditInstrumento] = useState('');
   const [editMarcaSerie, setEditMarcaSerie] = useState('');
   const [editEstadoInstrumento, setEditEstadoInstrumento] = useState('Excelente');
+  const [editNombreAcudiente, setEditNombreAcudiente] = useState('');
+  const [editDocumentoAcudiente, setEditDocumentoAcudiente] = useState('');
+  const [editCelularAcudiente, setEditCelularAcudiente] = useState('');
 
   useEffect(() => {
     cargarDatos();
@@ -113,6 +107,11 @@ export default function Home() {
     }
   };
 
+  const esMenorDeEdad = (valorEdad: string | number) => {
+    const num = Number(valorEdad);
+    return !isNaN(num) && num > 0 && num < 18;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!sesion) {
@@ -124,6 +123,9 @@ export default function Home() {
       return;
     }
 
+    const numEdad = edad ? parseInt(edad, 10) : null;
+    const esMenor = numEdad !== null && numEdad < 18;
+
     const { data, error } = await supabase
       .from('integrantes')
       .insert([
@@ -131,11 +133,15 @@ export default function Home() {
           nombre: nombre.trim(),
           tipo_documento: tipoDocumento,
           documento: documento.trim(),
+          edad: numEdad,
           celular: celular.trim(),
           proceso: procesoActivo,
           instrumento: instrumento.trim(),
           marca_serie: marcaSerie.trim() || 'No especificada',
           estado_instrumento: estadoInstrumento,
+          nombre_acudiente: esMenor ? nombreAcudiente.trim() : null,
+          documento_acudiente: esMenor ? documentoAcudiente.trim() : null,
+          celular_acudiente: esMenor ? celularAcudiente.trim() : null,
         },
       ])
       .select();
@@ -150,10 +156,14 @@ export default function Home() {
       setNombre('');
       setTipoDocumento('C.C.');
       setDocumento('');
+      setEdad('');
       setCelular('');
       setInstrumento('');
       setMarcaSerie('');
       setEstadoInstrumento('Excelente');
+      setNombreAcudiente('');
+      setDocumentoAcudiente('');
+      setCelularAcudiente('');
     }
   };
 
@@ -163,24 +173,35 @@ export default function Home() {
     setEditNombre(integrante.nombre || '');
     setEditTipoDocumento(integrante.tipo_documento || 'C.C.');
     setEditDocumento(integrante.documento || '');
+    setEditEdad(integrante.edad !== null && integrante.edad !== undefined ? String(integrante.edad) : '');
     setEditCelular(integrante.celular || '');
     setEditInstrumento(integrante.instrumento || '');
     setEditMarcaSerie(integrante.marca_serie || '');
     setEditEstadoInstrumento(integrante.estado_instrumento || 'Excelente');
+    setEditNombreAcudiente(integrante.nombre_acudiente || '');
+    setEditDocumentoAcudiente(integrante.documento_acudiente || '');
+    setEditCelularAcudiente(integrante.celular_acudiente || '');
   };
 
   // GUARDAR CAMBIOS DE EDICIÓN
   const guardarEdicion = async (id: string) => {
+    const numEdad = editEdad ? parseInt(editEdad, 10) : null;
+    const esMenor = numEdad !== null && numEdad < 18;
+
     const { error } = await supabase
       .from('integrantes')
       .update({
         nombre: editNombre.trim(),
         tipo_documento: editTipoDocumento,
         documento: editDocumento.trim(),
+        edad: numEdad,
         celular: editCelular.trim(),
         instrumento: editInstrumento.trim(),
         marca_serie: editMarcaSerie.trim(),
         estado_instrumento: editEstadoInstrumento,
+        nombre_acudiente: esMenor ? editNombreAcudiente.trim() : null,
+        documento_acudiente: esMenor ? editDocumentoAcudiente.trim() : null,
+        celular_acudiente: esMenor ? editCelularAcudiente.trim() : null,
       })
       .eq('id', id);
 
@@ -224,7 +245,9 @@ export default function Home() {
       (integrante.documento && integrante.documento.toLowerCase().includes(termino)) ||
       (integrante.instrumento && integrante.instrumento.toLowerCase().includes(termino)) ||
       (integrante.celular && integrante.celular.toLowerCase().includes(termino)) ||
-      (integrante.marca_serie && integrante.marca_serie.toLowerCase().includes(termino));
+      (integrante.marca_serie && integrante.marca_serie.toLowerCase().includes(termino)) ||
+      (integrante.nombre_acudiente && integrante.nombre_acudiente.toLowerCase().includes(termino)) ||
+      (integrante.documento_acudiente && integrante.documento_acudiente.toLowerCase().includes(termino));
 
     return coincideProceso && coincideTexto;
   });
@@ -240,7 +263,6 @@ export default function Home() {
       {/* ENCABEZADO */}
       <div className="flex justify-between items-center mb-8 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
         <div className="flex items-center gap-4">
-          {/* LOGO DE CODART - TAMAÑO GRANDE */}
           <img 
             src="/logo.jpg" 
             alt="Logo CODART" 
@@ -326,9 +348,7 @@ export default function Home() {
         {['Banda Filarmónica', 'Banda de Marcha', 'Prebanda'].map((p) => (
           <button
             key={p}
-            onClick={() => {
-              setProcesoActivo(p);
-            }}
+            onClick={() => setProcesoActivo(p)}
             className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition cursor-pointer shadow-xs ${
               procesoActivo === p
                 ? 'bg-blue-600 text-white shadow-sm'
@@ -363,11 +383,12 @@ export default function Home() {
               className={inputStyle}
               required
             />
-            <div className="flex gap-2">
+            
+            <div className="grid grid-cols-3 gap-2">
               <select
                 value={tipoDocumento}
                 onChange={(e) => setTipoDocumento(e.target.value)}
-                className="w-1/3 bg-slate-50 p-3 rounded-xl border border-slate-200 text-slate-800 outline-none focus:border-blue-600 font-semibold"
+                className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-slate-800 outline-none focus:border-blue-600 font-semibold"
               >
                 <option value="C.C.">C.C.</option>
                 <option value="T.I.">T.I.</option>
@@ -377,19 +398,70 @@ export default function Home() {
               </select>
               <input
                 type="text"
-                placeholder="Número de documento"
+                placeholder="Número documento"
                 value={documento}
                 onChange={(e) => setDocumento(e.target.value)}
-                className="w-2/3 bg-slate-50 p-3 rounded-xl border border-slate-200 text-slate-800 outline-none focus:border-blue-600"
+                className="col-span-2 bg-slate-50 p-3 rounded-xl border border-slate-200 text-slate-800 outline-none focus:border-blue-600"
               />
             </div>
-            <input
-              type="tel"
-              placeholder="Número de celular"
-              value={celular}
-              onChange={(e) => setCelular(e.target.value)}
-              className={inputStyle}
-            />
+
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="number"
+                placeholder="Edad"
+                min="1"
+                max="100"
+                value={edad}
+                onChange={(e) => setEdad(e.target.value)}
+                className={inputStyle}
+              />
+              <input
+                type="tel"
+                placeholder="Celular"
+                value={celular}
+                onChange={(e) => setCelular(e.target.value)}
+                className={inputStyle}
+              />
+            </div>
+
+            {/* SECCIÓN DESPLEGABLE ACUDIENTE SI ES MENOR DE EDAD */}
+            {esMenorDeEdad(edad) && (
+              <div className="bg-amber-50/70 border border-amber-200 p-4 rounded-xl space-y-3 animate-fade-in">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-amber-800 flex items-center gap-1">
+                    👨‍👩‍👧 Datos del Acudiente (Menor de edad)
+                  </span>
+                  <span className="text-[10px] bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full font-semibold">
+                    Requerido
+                  </span>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Nombre completo del acudiente"
+                  value={nombreAcudiente}
+                  onChange={(e) => setNombreAcudiente(e.target.value)}
+                  className="w-full bg-white p-2.5 rounded-lg border border-amber-200 text-slate-800 text-xs outline-none focus:border-amber-500"
+                  required={esMenorDeEdad(edad)}
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    placeholder="Cédula / Documento"
+                    value={documentoAcudiente}
+                    onChange={(e) => setDocumentoAcudiente(e.target.value)}
+                    className="w-full bg-white p-2.5 rounded-lg border border-amber-200 text-slate-800 text-xs outline-none focus:border-amber-500"
+                  />
+                  <input
+                    type="tel"
+                    placeholder="Celular acudiente"
+                    value={celularAcudiente}
+                    onChange={(e) => setCelularAcudiente(e.target.value)}
+                    className="w-full bg-white p-2.5 rounded-lg border border-amber-200 text-slate-800 text-xs outline-none focus:border-amber-500"
+                  />
+                </div>
+              </div>
+            )}
+
             <input
               type="text"
               placeholder="Instrumento"
@@ -447,7 +519,7 @@ export default function Home() {
               </span>
               <input
                 type="text"
-                placeholder="Buscar por nombre, documento, instrumento..."
+                placeholder="Buscar por nombre, acudiente, documento..."
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
                 className="w-full bg-slate-50 pl-9 pr-9 py-2.5 rounded-xl border border-slate-200 text-slate-800 text-sm outline-none focus:border-blue-600 focus:bg-white transition"
@@ -481,7 +553,7 @@ export default function Home() {
                 : 'No hay integrantes registrados en este proceso.'}
             </div>
           ) : (
-            <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+            <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
               {filtrados.map((integrante) => (
                 <div
                   key={integrante.id}
@@ -500,11 +572,11 @@ export default function Home() {
                         className={editInputStyle}
                         placeholder="Nombre completo"
                       />
-                      <div className="flex gap-2">
+                      <div className="grid grid-cols-3 gap-2">
                         <select
                           value={editTipoDocumento}
                           onChange={(e) => setEditTipoDocumento(e.target.value)}
-                          className="w-1/3 bg-slate-50 p-2 rounded-lg border border-slate-200 text-slate-800 text-xs outline-none focus:border-blue-600 mb-2 font-semibold"
+                          className="bg-slate-50 p-2 rounded-lg border border-slate-200 text-slate-800 text-xs outline-none focus:border-blue-600 mb-2 font-semibold"
                         >
                           <option value="C.C.">C.C.</option>
                           <option value="T.I.">T.I.</option>
@@ -516,17 +588,60 @@ export default function Home() {
                           type="text"
                           value={editDocumento}
                           onChange={(e) => setEditDocumento(e.target.value)}
-                          className="w-2/3 bg-slate-50 p-2 rounded-lg border border-slate-200 text-slate-800 text-xs outline-none focus:border-blue-600 mb-2"
+                          className="col-span-2 bg-slate-50 p-2 rounded-lg border border-slate-200 text-slate-800 text-xs outline-none focus:border-blue-600 mb-2"
                           placeholder="Número de documento"
                         />
                       </div>
-                      <input
-                        type="tel"
-                        value={editCelular}
-                        onChange={(e) => setEditCelular(e.target.value)}
-                        className={editInputStyle}
-                        placeholder="Celular"
-                      />
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="number"
+                          value={editEdad}
+                          onChange={(e) => setEditEdad(e.target.value)}
+                          className={editInputStyle}
+                          placeholder="Edad"
+                        />
+                        <input
+                          type="tel"
+                          value={editCelular}
+                          onChange={(e) => setEditCelular(e.target.value)}
+                          className={editInputStyle}
+                          placeholder="Celular"
+                        />
+                      </div>
+
+                      {/* EDICIÓN DE ACUDIENTE SI ES MENOR DE EDAD */}
+                      {esMenorDeEdad(editEdad) && (
+                        <div className="bg-amber-50 p-3 rounded-lg border border-amber-200 space-y-2 my-2">
+                          <p className="text-xs font-bold text-amber-800">
+                            👨‍👩‍👧 Datos del Acudiente:
+                          </p>
+                          <input
+                            type="text"
+                            value={editNombreAcudiente}
+                            onChange={(e) => setEditNombreAcudiente(e.target.value)}
+                            className="w-full bg-white p-2 rounded border border-amber-200 text-xs outline-none"
+                            placeholder="Nombre acudiente"
+                          />
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              type="text"
+                              value={editDocumentoAcudiente}
+                              onChange={(e) => setEditDocumentoAcudiente(e.target.value)}
+                              className="w-full bg-white p-2 rounded border border-amber-200 text-xs outline-none"
+                              placeholder="Cédula acudiente"
+                            />
+                            <input
+                              type="tel"
+                              value={editCelularAcudiente}
+                              onChange={(e) => setEditCelularAcudiente(e.target.value)}
+                              className="w-full bg-white p-2 rounded border border-amber-200 text-xs outline-none"
+                              placeholder="Celular acudiente"
+                            />
+                          </div>
+                        </div>
+                      )}
+
                       <input
                         type="text"
                         value={editInstrumento}
@@ -570,26 +685,38 @@ export default function Home() {
                   ) : (
                     /* MODO VISTA NORMAL */
                     <div className="flex justify-between gap-4">
-                      <div>
-                        <h3 className="font-bold text-slate-900">
-                          {integrante.nombre}
-                        </h3>
-                        <p className="text-sm text-blue-600 font-semibold mt-0.5">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-bold text-slate-900">
+                            {integrante.nombre}
+                          </h3>
+                          {integrante.edad && (
+                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">
+                              {integrante.edad} años
+                            </span>
+                          )}
+                          {integrante.edad && integrante.edad < 18 && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                              Menor de edad
+                            </span>
+                          )}
+                        </div>
+
+                        <p className="text-sm text-blue-600 font-semibold">
                           🎵 {integrante.instrumento}
                         </p>
+
                         {integrante.documento && (
-                          <p className="text-xs text-slate-500 mt-1">
+                          <p className="text-xs text-slate-500">
                             Documento: {integrante.tipo_documento || 'C.C.'}{' '}
                             {integrante.documento}
                           </p>
                         )}
+
                         {integrante.celular && (
-                          <p className="text-xs mt-1">
+                          <p className="text-xs">
                             <a
-                              href={`https://wa.me/57${integrante.celular.replace(
-                                /\D/g,
-                                ''
-                              )}`}
+                              href={`https://wa.me/57${integrante.celular.replace(/\D/g, '')}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-emerald-600 hover:underline inline-flex items-center gap-1 font-medium"
@@ -599,10 +726,37 @@ export default function Home() {
                             </a>
                           </p>
                         )}
-                        <p className="text-xs text-slate-500 mt-1">
+
+                        {/* TARJETA VISUAL DE ACUDIENTE */}
+                        {integrante.edad < 18 && integrante.nombre_acudiente && (
+                          <div className="mt-2 bg-amber-50/80 border border-amber-200 p-2.5 rounded-lg text-xs space-y-0.5">
+                            <p className="font-bold text-amber-900 flex items-center gap-1">
+                              👨‍👩‍👧 Acudiente: {integrante.nombre_acudiente}
+                            </p>
+                            {integrante.documento_acudiente && (
+                              <p className="text-slate-600 text-[11px]">
+                                Cédula: {integrante.documento_acudiente}
+                              </p>
+                            )}
+                            {integrante.celular_acudiente && (
+                              <p className="text-[11px]">
+                                <a
+                                  href={`https://wa.me/57${integrante.celular_acudiente.replace(/\D/g, '')}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-emerald-700 font-semibold hover:underline inline-flex items-center gap-1"
+                                >
+                                  💬 Celular Acudiente: {integrante.celular_acudiente}
+                                </a>
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        <p className="text-xs text-slate-500">
                           Marca / Serie: {integrante.marca_serie || 'No especificada'}
                         </p>
-                        <p className="text-xs text-slate-500 mt-1">
+                        <p className="text-xs text-slate-500">
                           Estado:{' '}
                           <span className="font-medium text-slate-700">
                             {integrante.estado_instrumento}
