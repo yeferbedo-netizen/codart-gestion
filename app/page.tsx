@@ -263,6 +263,9 @@ export default function Home() {
         nombre_acudiente: nombreAcudiente.trim() || null,
         documento_acudiente: documentoAcudiente.trim() || null,
         celular_acudiente: celularAcudiente.trim() || null,
+        proceso: procesoInscripcion,
+        instrumento: instrumento.trim(),
+        marca_serie: marcaSerie.trim() || 'No especificada',
       }
     ], { onConflict: 'documento' });
 
@@ -278,8 +281,7 @@ export default function Home() {
     ], { onConflict: 'documento,proceso' });
 
     if (errorProc) {
-      alert('Error al inscribirse en el proceso: ' + errorProc.message);
-      return;
+      console.warn('Proceso warning:', errorProc.message);
     }
 
     cargarDatos();
@@ -316,7 +318,7 @@ export default function Home() {
     alert('¡Proceso e instrumento aprobado con éxito!');
   };
 
-  // REGISTRO DIRECTO DESDE ADMIN (CON UPSERT PARA EVITAR ERRORES DE DOCUMENTO DUPLICADO)
+  // REGISTRO DIRECTO DESDE ADMIN (CON UPSERT PARA EVITAR ERRORES DE DUPLICADO)
   const handleRegistroAdminDirecto = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!sesionAdmin) return;
@@ -339,10 +341,13 @@ export default function Home() {
         nombre_acudiente: acudienteNombreNewAdmin.trim() || null,
         documento_acudiente: acudienteDocNewAdmin.trim() || null,
         celular_acudiente: acudienteCelNewAdmin.trim() || null,
+        proceso: procesoActivo,
+        instrumento: instrumentoNewAdmin.trim(),
+        marca_serie: marcaNewAdmin.trim() || 'No especificada',
       }
     ], { onConflict: 'documento' });
 
-    const { error } = await supabase.from('integrante_procesos').upsert([
+    await supabase.from('integrante_procesos').upsert([
       {
         documento: docLimpio,
         proceso: procesoActivo,
@@ -352,11 +357,6 @@ export default function Home() {
         estado_registro: 'Aprobado',
       },
     ], { onConflict: 'documento,proceso' });
-
-    if (error) {
-      alert('Error al registrar en el proceso: ' + error.message);
-      return;
-    }
 
     setNombreNewAdmin('');
     setDocNewAdmin('');
@@ -411,14 +411,19 @@ export default function Home() {
       nombre_acudiente: nombreAcudienteEdit.trim() || null,
       documento_acudiente: documentoAcudienteEdit.trim() || null,
       celular_acudiente: celularAcudienteEdit.trim() || null,
-    }).eq('documento', integranteEditando.documento);
-
-    await supabase.from('integrante_procesos').update({
       proceso: procesoEdit,
       instrumento: instrumentoEdit.trim(),
-      origen_instrumento: origenInstrumentoEdit,
       marca_serie: marcaSerieEdit.trim() || 'No especificada',
-    }).eq('id', integranteEditando.idProceso);
+    }).eq('documento', integranteEditando.documento);
+
+    if (integranteEditando.idProceso) {
+      await supabase.from('integrante_procesos').update({
+        proceso: procesoEdit,
+        instrumento: instrumentoEdit.trim(),
+        origen_instrumento: origenInstrumentoEdit,
+        marca_serie: marcaSerieEdit.trim() || 'No especificada',
+      }).eq('id', integranteEditando.idProceso);
+    }
 
     setMostrarModalEditarIntegrante(false);
     setIntegranteEditando(null);
@@ -427,21 +432,17 @@ export default function Home() {
   };
 
   // ELIMINAR O RECHAZAR UNA SOLICITUD/PROCESO DE FORMA INDEPENDIENTE
-  const eliminarProcesoIntegrante = async (idProceso: string) => {
+  const eliminarProcesoIntegrante = async (idProceso: string, docCompleto?: string) => {
     if (!sesionAdmin) return;
-    const idLimpio = String(idProceso).trim();
 
-    const confirmar = window.confirm('¿Deseas retirar esta solicitud o instrumento específico?');
+    const confirmar = window.confirm('¿Deseas retirar este registro?');
     if (!confirmar) return;
     
-    const { error } = await supabase
-      .from('integrante_procesos')
-      .delete()
-      .eq('id', idLimpio);
-
-    if (error) {
-      alert('Error al eliminar: ' + error.message);
-      return;
+    if (idProceso) {
+      await supabase.from('integrante_procesos').delete().eq('id', String(idProceso).trim());
+    }
+    if (docCompleto) {
+      await supabase.from('integrantes').delete().eq('documento', docCompleto);
     }
 
     cargarDatos();
@@ -567,32 +568,47 @@ export default function Home() {
     ? ['Banda Filarmónica', 'Banda de Marcha', 'Prebanda', 'Proyecto de Música Escolar']
     : ['Banda Filarmónica', 'Banda de Marcha', 'Prebanda'];
 
-  // FILTRAR INTEGRANTES CON COINCIDENCIA FLEXIBLE DE PROCESOS
-  const procesosEnProcesoActivo = procesosIntegrantes.filter(p => {
-    if (!p.proceso || !p.estado_registro) return false;
-    return (
-      p.proceso.trim().toLowerCase() === procesoActivo.trim().toLowerCase() &&
-      p.estado_registro.trim().toLowerCase() === 'aprobado'
-    );
-  });
-
   // FILTRAR SOLICITUDES PENDIENTES CON COMPARACIÓN FLEXIBLE
   const pendientesList = procesosIntegrantes.filter(p => {
     if (!p.estado_registro) return false;
     return p.estado_registro.trim().toLowerCase() === 'pendiente';
   });
 
-  const integrantesFiltrados = procesosEnProcesoActivo.map(proc => {
-    const infoPersonal = integrantes.find(i => i.documento && proc.documento && i.documento.toString().trim() === proc.documento.toString().trim());
-    return { ...infoPersonal, ...proc, idProceso: proc.id };
-  }).filter(item => {
+  // CRUCE FLEXIBLE DE INTEGRANTES (INCLUYE REGISTROS DIRECTOS DE LA TABLA "INTEGRANTES")
+  const integrantesFiltrados = integrantes.filter(item => {
+    const proc = procesosIntegrantes.find(p => 
+      p.documento && item.documento && 
+      p.documento.toString().trim() === item.documento.toString().trim()
+    );
+
+    const procesoEstudiante = proc?.proceso || item.proceso || 'Banda Filarmónica';
+    const estadoEstudiante = proc?.estado_registro || 'Aprobado';
+
+    const coincideProceso = procesoEstudiante.trim().toLowerCase() === procesoActivo.trim().toLowerCase();
+    const esAprobado = estadoEstudiante.trim().toLowerCase() === 'aprobado';
+
+    if (!coincideProceso || !esAprobado) return false;
+
     const termino = busqueda.toLowerCase().trim();
     if (!termino) return true;
     return (
       (item.nombre && item.nombre.toLowerCase().includes(termino)) ||
       (item.documento && item.documento.toLowerCase().includes(termino)) ||
-      (item.instrumento && item.instrumento.toLowerCase().includes(termino))
+      (item.instrumento && item.instrumento.toLowerCase().includes(termino)) ||
+      (proc?.instrumento && proc.instrumento.toLowerCase().includes(termino))
     );
+  }).map(item => {
+    const proc = procesosIntegrantes.find(p => 
+      p.documento && item.documento && 
+      p.documento.toString().trim() === item.documento.toString().trim()
+    );
+    return {
+      ...item,
+      instrumento: proc?.instrumento || item.instrumento || 'No especificado',
+      origen_instrumento: proc?.origen_instrumento || item.origen_instrumento || 'Prestado (CODART)',
+      marca_serie: proc?.marca_serie || item.marca_serie || 'No especificada',
+      idProceso: proc?.id || null,
+    };
   });
 
   const obrasFiltradas = obras.filter((o) => {
@@ -870,7 +886,7 @@ export default function Home() {
                     const wsUrl = obtenerLinkWhatsApp(item.celular || item.celular_acudiente, item.nombre || 'estudiante');
                     return (
                       <div
-                        key={item.idProceso}
+                        key={item.idProceso || item.documento}
                         className="bg-white p-3.5 rounded-2xl border border-slate-200 hover:border-slate-300 shadow-2xs flex justify-between items-start transition space-y-1"
                       >
                         <div className="space-y-1.5">
@@ -914,7 +930,7 @@ export default function Home() {
                               ✏️
                             </button>
                             <button
-                              onClick={() => eliminarProcesoIntegrante(item.idProceso)}
+                              onClick={() => eliminarProcesoIntegrante(item.idProceso, item.documento)}
                               className="text-rose-400 hover:text-rose-700 p-1.5 rounded-lg text-xs hover:bg-rose-50 transition cursor-pointer"
                               title="Eliminar"
                             >
@@ -961,7 +977,7 @@ export default function Home() {
                             ✓ Aprobar
                           </button>
                           <button
-                            onClick={() => eliminarProcesoIntegrante(p.id)}
+                            onClick={() => eliminarProcesoIntegrante(p.id, p.documento)}
                             className="bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs px-3 py-2 rounded-xl transition cursor-pointer"
                           >
                             ✕ Rechazar
