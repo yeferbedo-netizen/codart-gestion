@@ -1,6 +1,3 @@
-¡Claro que sí, Jefersson! Aquí tienes el código completo con la nueva pestaña "Proyecto de Música Escolar" añadida y el código cerrado correctamente sin cortes.
-
-TypeScript
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -170,7 +167,6 @@ export default function Home() {
     }
   };
 
-  // INICIAR EDICIÓN
   const iniciarEdicion = (integrante: any) => {
     setEditandoId(integrante.id);
     setEditNombre(integrante.nombre || '');
@@ -186,7 +182,6 @@ export default function Home() {
     setEditCelularAcudiente(integrante.celular_acudiente || '');
   };
 
-  // GUARDAR CAMBIOS DE EDICIÓN
   const guardarEdicion = async (id: string) => {
     const numEdad = editEdad ? parseInt(editEdad, 10) : null;
     const esMenor = numEdad !== null && numEdad < 18;
@@ -236,7 +231,6 @@ export default function Home() {
     setIntegrantes(integrantes.filter((integrante) => integrante.id !== id));
   };
 
-  // LÓGICA DE FILTRADO POR PROCESO Y BÚSQUEDA
   const filtrados = integrantes.filter((integrante) => {
     const coincideProceso = integrante.proceso === procesoActivo;
     const termino = busqueda.toLowerCase().trim();
@@ -765,26 +759,25 @@ export default function Home() {
                           Marca / Serie: {integrante.marca_serie || 'No especificada'}
                         </p>
                         <p className="text-xs text-slate-500">
-                          Estado:{' '}
-                          <span className="font-medium text-slate-700">
-                            {integrante.estado_instrumento}
-                          </span>
+                          Estado: <span className="font-semibold text-slate-700">{integrante.estado_instrumento || 'Excelente'}</span>
                         </p>
                       </div>
 
                       {sesion && (
-                        <div className="flex flex-col gap-2 justify-center">
+                        <div className="flex flex-col gap-2 items-end justify-start">
                           <button
                             onClick={() => iniciarEdicion(integrante)}
-                            className="bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-bold px-3 py-1.5 rounded-lg border border-amber-200 transition cursor-pointer"
+                            className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-2.5 py-1.5 rounded-lg transition cursor-pointer"
+                            title="Editar"
                           >
                             ✏️ Editar
                           </button>
                           <button
                             onClick={() => eliminarIntegrante(integrante.id)}
-                            className="bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold px-3 py-1.5 rounded-lg border border-rose-200 transition cursor-pointer"
+                            className="bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold px-2.5 py-1.5 rounded-lg transition cursor-pointer"
+                            title="Eliminar"
                           >
-                            🗑️ Eliminar
+                            🗑️
                           </button>
                         </div>
                       )}
