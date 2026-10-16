@@ -228,7 +228,7 @@ export default function Home() {
           <img 
             src="/logo.jpg" 
             alt="Logo CODART" 
-            className="w-12 h-12 object-contain"
+            className="w-10 h-10 object-contain rounded-lg"
           />
           <div>
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
