@@ -374,22 +374,27 @@ export default function Home() {
     alert(`¡Inscrito y aprobado con éxito en ${procesoActivo}!`);
   };
 
-  // ABRIR MODAL EDITAR INTEGRANTE
+  // ABRIR MODAL EDITAR INTEGRANTE (CORREGIDO PARA CARGAR DATOS PERSONALES)
   const abrirModalEditarIntegrante = (item: any) => {
+    const infoPersonal = integrantes.find(i => 
+      i.documento && item.documento && 
+      i.documento.toString().trim() === item.documento.toString().trim()
+    ) || item;
+
     setIntegranteEditando(item);
-    setNombreEdit(item.nombre || '');
-    setTipoDocumentoEdit(item.tipo_documento || 'C.C.');
-    setDocumentoEdit(item.documento || '');
-    setEdadEdit(item.edad ? String(item.edad) : '');
-    setCelularEdit(item.celular || '');
-    setGradoEscolarEdit(item.grado_escolar || '');
+    setNombreEdit(infoPersonal.nombre || item.nombre || '');
+    setTipoDocumentoEdit(infoPersonal.tipo_documento || item.tipo_documento || 'C.C.');
+    setDocumentoEdit(infoPersonal.documento || item.documento || '');
+    setEdadEdit(infoPersonal.edad ? String(infoPersonal.edad) : (item.edad ? String(item.edad) : ''));
+    setCelularEdit(infoPersonal.celular || item.celular || '');
+    setGradoEscolarEdit(infoPersonal.grado_escolar || item.grado_escolar || '');
     setProcesoEdit(item.proceso || 'Banda Filarmónica');
     setInstrumentoEdit(item.instrumento || '');
     setOrigenInstrumentoEdit(item.origen_instrumento || 'Prestado (CODART)');
     setMarcaSerieEdit(item.marca_serie || '');
-    setNombreAcudienteEdit(item.nombre_acudiente || '');
-    setDocumentoAcudienteEdit(item.documento_acudiente || '');
-    setCelularAcudienteEdit(item.celular_acudiente || '');
+    setNombreAcudienteEdit(infoPersonal.nombre_acudiente || '');
+    setDocumentoAcudienteEdit(infoPersonal.documento_acudiente || '');
+    setCelularAcudienteEdit(infoPersonal.celular_acudiente || '');
     setMostrarModalEditarIntegrante(true);
   };
 
