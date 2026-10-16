@@ -1,3 +1,6 @@
+¡Claro que sí, Jefersson! Aquí tienes el código completo con la nueva pestaña "Proyecto de Música Escolar" añadida y el código cerrado correctamente sin cortes.
+
+TypeScript
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -345,7 +348,12 @@ export default function Home() {
 
       {/* PESTAÑAS */}
       <div className="flex gap-3 mb-8 flex-wrap">
-        {['Banda Filarmónica', 'Banda de Marcha', 'Prebanda'].map((p) => (
+        {[
+          'Banda Filarmónica',
+          'Banda de Marcha',
+          'Prebanda',
+          'Proyecto de Música Escolar',
+        ].map((p) => (
           <button
             key={p}
             onClick={() => setProcesoActivo(p)}
@@ -764,24 +772,22 @@ export default function Home() {
                         </p>
                       </div>
 
-                      <div className="flex flex-col gap-1 items-center justify-center">
-                        <button
-                          type="button"
-                          onClick={() => iniciarEdicion(integrante)}
-                          className="text-amber-600 hover:text-amber-700 p-1.5 text-sm cursor-pointer bg-amber-50 rounded-lg border border-amber-200 transition"
-                          title="Editar"
-                        >
-                          ✏️
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => eliminarIntegrante(integrante.id)}
-                          className="text-rose-600 hover:text-rose-700 p-1.5 text-sm cursor-pointer bg-rose-50 rounded-lg border border-rose-200 transition"
-                          title="Eliminar"
-                        >
-                          🗑️
-                        </button>
-                      </div>
+                      {sesion && (
+                        <div className="flex flex-col gap-2 justify-center">
+                          <button
+                            onClick={() => iniciarEdicion(integrante)}
+                            className="bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-bold px-3 py-1.5 rounded-lg border border-amber-200 transition cursor-pointer"
+                          >
+                            ✏️ Editar
+                          </button>
+                          <button
+                            onClick={() => eliminarIntegrante(integrante.id)}
+                            className="bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold px-3 py-1.5 rounded-lg border border-rose-200 transition cursor-pointer"
+                          >
+                            🗑️ Eliminar
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
