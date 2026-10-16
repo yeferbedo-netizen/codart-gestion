@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from './lib/supabase';
 
 export default function Home() {
-  const [moduloActivo, setModuloActivo] = useState<'integrantes' | 'partituras'>('partituras');
+  const [moduloActivo, setModuloActivo] = useState<'integrantes' | 'partituras' | 'pendientes'>('partituras');
   const [procesoActivo, setProcesoActivo] = useState('Banda Filarmónica');
   
   // INTEGRANTES Y SOLICITUDES
@@ -13,6 +13,21 @@ export default function Home() {
   const [mostrarModalInscripcion, setMostrarModalInscripcion] = useState(false);
   const [mostrarQR, setMostrarQR] = useState(false);
   const [registroExitoso, setRegistroExitoso] = useState(false);
+
+  // NUEVO INTEGRANTE (ADMIN)
+  const [mostrarModalNuevoIntegranteAdmin, setMostrarModalNuevoIntegranteAdmin] = useState(false);
+  const [nombreNewAdmin, setNombreNewAdmin] = useState('');
+  const [tipoDocNewAdmin, setTipoDocNewAdmin] = useState('C.C.');
+  const [docNewAdmin, setDocNewAdmin] = useState('');
+  const [edadNewAdmin, setEdadNewAdmin] = useState('');
+  const [celularNewAdmin, setCelularNewAdmin] = useState('');
+  const [gradoNewAdmin, setGradoNewAdmin] = useState('');
+  const [instrumentoNewAdmin, setInstrumentoNewAdmin] = useState('');
+  const [origenNewAdmin, setOrigenNewAdmin] = useState('Prestado (CODART)');
+  const [marcaNewAdmin, setMarcaNewAdmin] = useState('');
+  const [acudienteNombreNewAdmin, setAcudienteNombreNewAdmin] = useState('');
+  const [acudienteDocNewAdmin, setAcudienteDocNewAdmin] = useState('');
+  const [acudienteCelNewAdmin, setAcudienteCelNewAdmin] = useState('');
 
   // EDITAR INTEGRANTE (ADMIN - COMPLETO)
   const [mostrarModalEditarIntegrante, setMostrarModalEditarIntegrante] = useState(false);
@@ -44,7 +59,7 @@ export default function Home() {
   const [documentoLogin, setDocumentoLogin] = useState('');
   const [passwordLogin, setPasswordLogin] = useState('');
 
-  // FORMULARIO INSCRIPCIÓN
+  // FORMULARIO INSCRIPCIÓN PÚBLICA
   const [procesoInscripcion, setProcesoInscripcion] = useState('Banda Filarmónica');
   const [nombre, setNombre] = useState('');
   const [tipoDocumento, setTipoDocumento] = useState('C.C.');
@@ -83,15 +98,7 @@ export default function Home() {
   const [subiendoArchivos, setSubiendoArchivos] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
-  // CALENDARIO
-  const [hoy, setHoy] = useState<Date | null>(null);
-  const [fechaCalendario, setFechaCalendario] = useState<Date | null>(null);
-
   useEffect(() => {
-    const ahora = new Date();
-    setHoy(ahora);
-    setFechaCalendario(ahora);
-
     cargarDatos();
     cargarPartituras();
     verificarSesiones();
@@ -231,8 +238,6 @@ export default function Home() {
     }
 
     const numEdad = edad ? parseInt(edad, 10) : null;
-    const estadoInicial = sesionAdmin ? 'Aprobado' : 'Pendiente';
-    const procesoFinal = sesionAdmin ? procesoActivo : procesoInscripcion;
 
     const { data, error } = await supabase
       .from('integrantes')
@@ -243,8 +248,8 @@ export default function Home() {
           documento: documento.trim(),
           edad: numEdad,
           celular: celular.trim(),
-          grado_escolar: procesoFinal === 'Proyecto de Música Escolar' ? gradoEscolar.trim() : null,
-          proceso: procesoFinal,
+          grado_escolar: procesoInscripcion === 'Proyecto de Música Escolar' ? gradoEscolar.trim() : null,
+          proceso: procesoInscripcion,
           instrumento: instrumento.trim(),
           origen_instrumento: origenInstrumento,
           marca_serie: marcaSerie.trim() || 'No especificada',
@@ -252,7 +257,7 @@ export default function Home() {
           nombre_acudiente: nombreAcudiente.trim() || null,
           documento_acudiente: documentoAcudiente.trim() || null,
           celular_acudiente: celularAcudiente.trim() || null,
-          estado_registro: estadoInicial,
+          estado_registro: 'Pendiente',
         },
       ])
       .select();
@@ -278,16 +283,81 @@ export default function Home() {
       setDocumentoAcudiente('');
       setCelularAcudiente('');
       setMostrarModalInscripcion(false);
-
-      if (!sesionAdmin) {
-        setRegistroExitoso(true);
-      } else {
-        alert('Integrante registrado y aprobado con éxito.');
-      }
+      setRegistroExitoso(true);
     }
   };
 
-  // ABRIR MODAL EDITAR INTEGRANTE (COMPLETO)
+  // APROBAR SOLICITUD PENDIENTE (ADMIN)
+  const aprobarSolicitud = async (id: string) => {
+    if (!sesionAdmin) return;
+    const { error } = await supabase
+      .from('integrantes')
+      .update({ estado_registro: 'Aprobado' })
+      .eq('id', id);
+
+    if (error) {
+      alert('Error al aprobar la solicitud: ' + error.message);
+      return;
+    }
+
+    cargarDatos();
+    alert('¡Solicitud aprobada con éxito! El músico ya puede iniciar sesión con su documento y contraseña "codart".');
+  };
+
+  // REGISTRO MANUAL DIRECTO DESDE ADMIN
+  const handleRegistroAdminDirecto = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!sesionAdmin) return;
+    if (!nombreNewAdmin.trim() || !instrumentoNewAdmin.trim()) {
+      alert('El nombre y el instrumento son obligatorios.');
+      return;
+    }
+
+    const numEdad = edadNewAdmin ? parseInt(edadNewAdmin, 10) : null;
+
+    const { error } = await supabase.from('integrantes').insert([
+      {
+        nombre: nombreNewAdmin.trim(),
+        tipo_documento: tipoDocNewAdmin,
+        documento: docNewAdmin.trim(),
+        edad: numEdad,
+        celular: celularNewAdmin.trim(),
+        grado_escolar: procesoActivo === 'Proyecto de Música Escolar' ? gradoNewAdmin.trim() : null,
+        proceso: procesoActivo,
+        instrumento: instrumentoNewAdmin.trim(),
+        origen_instrumento: origenNewAdmin,
+        marca_serie: marcaNewAdmin.trim() || 'No especificada',
+        estado_instrumento: 'Excelente',
+        nombre_acudiente: acudienteNombreNewAdmin.trim() || null,
+        documento_acudiente: acudienteDocNewAdmin.trim() || null,
+        celular_acudiente: acudienteCelNewAdmin.trim() || null,
+        estado_registro: 'Aprobado',
+      },
+    ]);
+
+    if (error) {
+      alert('Error al registrar integrante: ' + error.message);
+      return;
+    }
+
+    setNombreNewAdmin('');
+    setDocNewAdmin('');
+    setEdadNewAdmin('');
+    setCelularNewAdmin('');
+    setGradoNewAdmin('');
+    setInstrumentoNewAdmin('');
+    setOrigenNewAdmin('Prestado (CODART)');
+    setMarcaNewAdmin('');
+    setAcudienteNombreNewAdmin('');
+    setAcudienteDocNewAdmin('');
+    setAcudienteCelNewAdmin('');
+    setMostrarModalNuevoIntegranteAdmin(false);
+
+    cargarDatos();
+    alert(`¡Integrante registrado y aprobado con éxito en ${procesoActivo}!`);
+  };
+
+  // EDITAR INTEGRANTE
   const abrirModalEditarIntegrante = (integrante: any) => {
     setIntegranteEditando(integrante);
     setNombreEdit(integrante.nombre || '');
@@ -307,7 +377,6 @@ export default function Home() {
     setMostrarModalEditarIntegrante(true);
   };
 
-  // GUARDAR EDICIÓN INTEGRANTE
   const guardarEdicionIntegrante = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!sesionAdmin || !integranteEditando) return;
@@ -357,7 +426,7 @@ export default function Home() {
     setIntegrantes(integrantes.filter((i) => i.id !== id));
   };
 
-  // CREAR CARPETA (SOLO ADMIN)
+  // CREAR CARPETA
   const crearCarpetaObra = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!sesionAdmin) return;
@@ -391,7 +460,7 @@ export default function Home() {
     }
   };
 
-  // EDITAR CARPETA / OBRA (SOLO ADMIN)
+  // EDITAR CARPETA / OBRA
   const abrirModalEditarCarpeta = (obra: any) => {
     setCarpetaEditando(obra);
     setTituloCarpetaEdit(obra.titulo || '');
@@ -424,7 +493,7 @@ export default function Home() {
     alert('¡Carpeta actualizada con éxito!');
   };
 
-  // SUBIR ARCHIVOS (SOLO ADMIN)
+  // SUBIR ARCHIVOS
   const subirArchivosSeleccionados = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!sesionAdmin || !obraSeleccionadaDrive || archivosSeleccionados.length === 0) return;
@@ -506,6 +575,8 @@ export default function Home() {
     );
   });
 
+  const pendientesList = integrantes.filter((i) => i.estado_registro === 'Pendiente');
+
   const obrasFiltradas = obras.filter((o) => {
     const coincideProceso = o.proceso === procesoActivo;
     const termino = busquedaPartitura.toLowerCase().trim();
@@ -527,7 +598,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-800 p-4 md:p-8">
-      {/* ENCABEZADO PRINCIPAL CON LOS 4 BOTONES EXACTOS */}
+      {/* ENCABEZADO PRINCIPAL */}
       <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
         <div className="flex items-center gap-4">
           <img 
@@ -545,7 +616,6 @@ export default function Home() {
           </div>
         </div>
         
-        {/* LOS 4 BOTONES SOLICITADOS PARA VISITANTES */}
         <div className="flex items-center gap-2 flex-wrap">
           {sesionAdmin ? (
             <div className="flex items-center gap-2">
@@ -573,7 +643,6 @@ export default function Home() {
             </div>
           ) : (
             <div className="flex items-center gap-2 flex-wrap">
-              {/* 1. Botón Inscripción */}
               <button
                 onClick={() => setMostrarModalInscripcion(true)}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs md:text-sm font-bold px-4 py-2.5 rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5"
@@ -581,7 +650,6 @@ export default function Home() {
                 <span>📝</span> Inscripción
               </button>
 
-              {/* 2. Botón Código QR */}
               <button
                 onClick={() => setMostrarQR(true)}
                 className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs md:text-sm font-bold px-3 py-2.5 rounded-xl border border-slate-200 transition cursor-pointer flex items-center gap-1.5"
@@ -589,7 +657,6 @@ export default function Home() {
                 <span>🔗</span> Código QR
               </button>
 
-              {/* 3. Botón Iniciar Sesión Estudiantes */}
               <button
                 onClick={() => setMostrarModalIntegrante(true)}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs md:text-sm font-bold px-3 py-2.5 rounded-xl shadow-sm transition cursor-pointer flex items-center gap-1.5"
@@ -597,7 +664,6 @@ export default function Home() {
                 <span>🎵</span> Iniciar sesión estudiantes
               </button>
 
-              {/* 4. Botón Acceso Admin */}
               <button
                 onClick={() => setMostrarModalAdmin(true)}
                 className="bg-slate-800 hover:bg-slate-900 text-white text-xs md:text-sm font-bold px-3 py-2.5 rounded-xl shadow-sm transition cursor-pointer flex items-center gap-1.5"
@@ -660,7 +726,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL INSCRIPCIÓN */}
+      {/* MODAL INSCRIPCIÓN PÚBLICA */}
       {mostrarModalInscripcion && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
           <div className="bg-white border border-slate-200 p-6 md:p-8 rounded-3xl w-full max-w-lg relative shadow-2xl my-8">
@@ -729,7 +795,93 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL EDITAR INTEGRANTE (ADMIN - COMPLETO) */}
+      {/* MODAL NUEVO INTEGRANTE (SOLO ADMIN) */}
+      {mostrarModalNuevoIntegranteAdmin && sesionAdmin && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white border border-slate-200 p-6 md:p-8 rounded-3xl w-full max-w-lg relative shadow-2xl my-8">
+            <button type="button" onClick={() => setMostrarModalNuevoIntegranteAdmin(false)} className="absolute top-4 right-4 text-slate-400 font-bold">✕</button>
+            <h2 className="text-2xl font-bold text-slate-900 mb-1">➕ Registrar Integrante (Admin)</h2>
+            <p className="text-xs text-slate-500 mb-6">Agregando directamente a: <strong className="text-blue-600">{procesoActivo}</strong></p>
+
+            <form onSubmit={handleRegistroAdminDirecto} className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+              <div>
+                <label className="text-xs font-bold text-slate-700 mb-1 block">Nombre completo *</label>
+                <input type="text" placeholder="Nombre del músico" value={nombreNewAdmin} onChange={(e) => setNombreNewAdmin(e.target.value)} className={inputStyle} required />
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <select value={tipoDocNewAdmin} onChange={(e) => setTipoDocNewAdmin(e.target.value)} className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-slate-800 font-semibold text-xs">
+                  <option value="C.C.">C.C.</option><option value="T.I.">T.I.</option><option value="R.C.">R.C.</option><option value="C.E.">C.E.</option><option value="P.A.">P.A.</option>
+                </select>
+                <input type="text" placeholder="Número documento" value={docNewAdmin} onChange={(e) => setDocNewAdmin(e.target.value)} className="col-span-2 bg-slate-50 p-3 rounded-xl border border-slate-200 text-slate-800 text-sm" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 mb-1 block">Edad</label>
+                  <input type="number" placeholder="Edad" min="1" max="100" value={edadNewAdmin} onChange={(e) => setEdadNewAdmin(e.target.value)} className={inputStyle} />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-700 mb-1 block">Celular</label>
+                  <input type="tel" placeholder="Celular" value={celularNewAdmin} onChange={(e) => setCelularNewAdmin(e.target.value)} className={inputStyle} />
+                </div>
+              </div>
+
+              {procesoActivo === 'Proyecto de Música Escolar' && (
+                <div className="bg-indigo-50/70 border border-indigo-200 p-4 rounded-xl space-y-2">
+                  <label className="text-xs font-bold text-indigo-900 block">🎓 Grado Escolar</label>
+                  <input type="text" placeholder="Ej. Cuarto A" value={gradoNewAdmin} onChange={(e) => setGradoNewAdmin(e.target.value)} className="w-full bg-white p-2.5 rounded-lg border border-indigo-200 text-sm" />
+                </div>
+              )}
+
+              {esMenorDeEdad(edadNewAdmin) && (
+                <div className="bg-amber-50/70 border border-amber-200 p-4 rounded-xl space-y-3">
+                  <span className="text-xs font-bold text-amber-800 block">👨‍👩‍👧 Datos del Acudiente</span>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 mb-0.5 block">Nombre del Acudiente</label>
+                    <input type="text" placeholder="Nombre completo" value={acudienteNombreNewAdmin} onChange={(e) => setAcudienteNombreNewAdmin(e.target.value)} className="w-full bg-white p-2.5 rounded-lg border border-amber-200 text-xs" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 mb-0.5 block">Cédula Acudiente</label>
+                      <input type="text" placeholder="Cédula" value={acudienteDocNewAdmin} onChange={(e) => setAcudienteDocNewAdmin(e.target.value)} className="w-full bg-white p-2.5 rounded-lg border border-amber-200 text-xs" />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 mb-0.5 block">Celular Acudiente</label>
+                      <input type="tel" placeholder="Celular" value={acudienteCelNewAdmin} onChange={(e) => setAcudienteCelNewAdmin(e.target.value)} className="w-full bg-white p-2.5 rounded-lg border border-amber-200 text-xs" />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 mb-1 block">Instrumento *</label>
+                  <input type="text" placeholder="Ej. Clarinete" value={instrumentoNewAdmin} onChange={(e) => setInstrumentoNewAdmin(e.target.value)} className={inputStyle} required />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-700 mb-1 block">Origen Instrumento</label>
+                  <select value={origenNewAdmin} onChange={(e) => setOrigenNewAdmin(e.target.value)} className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs font-semibold w-full">
+                    <option value="Prestado (CODART)">🎵 Prestado (CODART)</option>
+                    <option value="Propio">⭐ Instrumento Propio</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 mb-1 block">Marca y Serie</label>
+                <input type="text" placeholder="Ej. Yamaha YCL-255" value={marcaNewAdmin} onChange={(e) => setMarcaNewAdmin(e.target.value)} className={inputStyle} />
+              </div>
+
+              <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold text-sm transition cursor-pointer mt-2">
+                Guardar e Inscribir Integrante
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL EDITAR INTEGRANTE */}
       {mostrarModalEditarIntegrante && integranteEditando && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
           <div className="bg-white border border-slate-200 p-6 md:p-8 rounded-3xl w-full max-w-lg relative shadow-2xl my-8">
@@ -825,19 +977,35 @@ export default function Home() {
         </div>
       )}
 
-      {/* CONFIRMACIÓN REGISTRO */}
+      {/* MODAL DE CONFIRMACIÓN DE REGISTRO CON ADVERTENCIA DE CREDENCIALES */}
       {registroExitoso && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white border border-slate-200 p-8 rounded-3xl w-full max-w-md text-center space-y-4 shadow-2xl">
             <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-3xl">✓</div>
             <h2 className="text-2xl font-bold text-slate-900">¡Inscripción Recibida!</h2>
-            <p className="text-sm text-slate-600">El administrador revisará y aprobará tu solicitud pronto.</p>
-            <button onClick={() => setRegistroExitoso(false)} className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl text-sm">Entendido</button>
+            <p className="text-sm text-slate-600">Tu solicitud ha sido enviada con éxito y está pendiente de aprobación por el Administrador.</p>
+            
+            <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl text-left space-y-1.5">
+              <p className="text-xs font-bold text-amber-900 flex items-center gap-1">
+                <span>⚠️</span> Importante para tu ingreso:
+              </p>
+              <p className="text-xs text-amber-800 leading-relaxed">
+                Una vez el administrador apruebe tu registro, podrás ingresar al Repositorio de Partituras usando:
+              </p>
+              <ul className="text-xs text-amber-900 font-semibold list-disc list-inside pt-1 space-y-0.5">
+                <li>Usuario: Tu número de identificación.</li>
+                <li>Contraseña: <code className="bg-amber-100 px-1.5 py-0.5 rounded text-amber-950 font-mono">codart</code></li>
+              </ul>
+            </div>
+
+            <button onClick={() => setRegistroExitoso(false)} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl text-sm transition cursor-pointer">
+              Entendido
+            </button>
           </div>
         </div>
       )}
 
-      {/* MODAL NUEVA CARPETA (SOLO ADMIN) */}
+      {/* MODAL NUEVA CARPETA */}
       {mostrarModalNuevaCarpeta && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-md relative shadow-2xl">
@@ -866,7 +1034,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL EDITAR CARPETA / OBRA (SOLO ADMIN) */}
+      {/* MODAL EDITAR CARPETA / OBRA */}
       {mostrarModalEditarCarpeta && carpetaEditando && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-md relative shadow-2xl">
@@ -895,7 +1063,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL SUBIR ARCHIVOS (SOLO ADMIN) */}
+      {/* MODAL SUBIR ARCHIVOS */}
       {mostrarModalSubirArchivos && obraSeleccionadaDrive && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-lg relative shadow-2xl">
@@ -959,14 +1127,13 @@ export default function Home() {
         </div>
       )}
 
-      {/* CONTENIDO CONDICIONAL: SI HAY SESIÓN SE MUESTRA TODO; SI ES VISITANTE, ÚNICAMENTE LA BIENVENIDA */}
+      {/* CONTENIDO CONDICIONAL */}
       {haySesion ? (
         <div className="space-y-6">
-          {/* SELECTOR DE MÓDULO */}
-          <div className="flex gap-2 mb-6 bg-slate-200/60 p-1.5 rounded-2xl max-w-md mx-auto md:mx-0">
+          <div className="flex gap-2 mb-6 bg-slate-200/60 p-1.5 rounded-2xl max-w-xl mx-auto md:mx-0 flex-wrap">
             <button
               onClick={() => setModuloActivo('partituras')}
-              className={`flex-1 py-2.5 rounded-xl text-xs md:text-sm font-bold transition cursor-pointer text-center flex items-center justify-center gap-2 ${
+              className={`flex-1 py-2.5 px-4 rounded-xl text-xs md:text-sm font-bold transition cursor-pointer text-center flex items-center justify-center gap-2 ${
                 moduloActivo === 'partituras'
                   ? 'bg-white text-blue-700 shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
@@ -976,7 +1143,7 @@ export default function Home() {
             </button>
             <button
               onClick={() => setModuloActivo('integrantes')}
-              className={`flex-1 py-2.5 rounded-xl text-xs md:text-sm font-bold transition cursor-pointer text-center flex items-center justify-center gap-2 ${
+              className={`flex-1 py-2.5 px-4 rounded-xl text-xs md:text-sm font-bold transition cursor-pointer text-center flex items-center justify-center gap-2 ${
                 moduloActivo === 'integrantes'
                   ? 'bg-white text-blue-700 shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
@@ -984,32 +1151,50 @@ export default function Home() {
             >
               <span>👥</span> Integrantes
             </button>
-          </div>
-
-          {/* PESTAÑAS DE AGRUPACIONES */}
-          <div className="flex gap-3 mb-6 flex-wrap">
-            {[
-              'Banda Filarmónica',
-              'Banda de Marcha',
-              'Prebanda',
-              'Proyecto de Música Escolar',
-            ].map((p) => (
+            {sesionAdmin && (
               <button
-                key={p}
-                onClick={() => {
-                  setProcesoActivo(p);
-                  setObraSeleccionadaDrive(null);
-                }}
-                className={`px-5 py-2.5 rounded-xl font-semibold text-xs md:text-sm transition cursor-pointer shadow-xs ${
-                  procesoActivo === p
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                onClick={() => setModuloActivo('pendientes')}
+                className={`flex-1 py-2.5 px-4 rounded-xl text-xs md:text-sm font-bold transition cursor-pointer text-center flex items-center justify-center gap-2 relative ${
+                  moduloActivo === 'pendientes'
+                    ? 'bg-white text-blue-700 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                {p}
+                <span>⏳</span> Solicitudes
+                {pendientesList.length > 0 && (
+                  <span className="bg-rose-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+                    {pendientesList.length}
+                  </span>
+                )}
               </button>
-            ))}
+            )}
           </div>
+
+          {moduloActivo !== 'pendientes' && (
+            <div className="flex gap-3 mb-6 flex-wrap">
+              {[
+                'Banda Filarmónica',
+                'Banda de Marcha',
+                'Prebanda',
+                'Proyecto de Música Escolar',
+              ].map((p) => (
+                <button
+                  key={p}
+                  onClick={() => {
+                    setProcesoActivo(p);
+                    setObraSeleccionadaDrive(null);
+                  }}
+                  className={`px-5 py-2.5 rounded-xl font-semibold text-xs md:text-sm transition cursor-pointer shadow-xs ${
+                    procesoActivo === p
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+          )}
 
           {moduloActivo === 'partituras' ? (
             <div className="space-y-6">
@@ -1194,15 +1379,86 @@ export default function Home() {
                 </div>
               )}
             </div>
+          ) : moduloActivo === 'pendientes' && sesionAdmin ? (
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <span>⏳</span> Solicitudes de Inscripción Pendientes ({pendientesList.length})
+              </h2>
+              <p className="text-xs text-slate-500">
+                Aprueba a los músicos que se hayan inscrito mediante el formulario público para habilitar sus credenciales de acceso.
+              </p>
+
+              {pendientesList.length === 0 ? (
+                <div className="text-center py-16 text-slate-400 space-y-2">
+                  <p className="text-3xl">🎉</p>
+                  <p className="font-semibold text-slate-700 text-sm">No hay solicitudes pendientes por aprobar</p>
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+                  {pendientesList.map((solicitud) => (
+                    <div key={solicitud.id} className="bg-amber-50/50 border border-amber-200 rounded-2xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-bold text-slate-900 text-base">{solicitud.nombre}</h3>
+                          <span className="text-[11px] bg-amber-100 text-amber-900 px-2.5 py-0.5 rounded-full font-semibold">
+                            Proceso: {solicitud.proceso}
+                          </span>
+                          <span className="text-[11px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-semibold">
+                            {solicitud.tipo_documento} {solicitud.documento}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-600 font-medium">
+                          Instrumento: <strong className="text-blue-700">{solicitud.instrumento}</strong> {solicitud.edad ? `• ${solicitud.edad} años` : ''}
+                        </p>
+                        {solicitud.celular && (
+                          <p className="text-xs text-slate-500">Celular: {solicitud.celular}</p>
+                        )}
+                        {solicitud.nombre_acudiente && (
+                          <p className="text-[11px] text-amber-900">Acudiente: {solicitud.nombre_acudiente} ({solicitud.celular_acudiente || 'Sin tel'})</p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => aprobarSolicitud(solicitud.id)}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition shadow-xs cursor-pointer flex items-center gap-1.5"
+                        >
+                          <span>✓</span> Aprobar Músico
+                        </button>
+                        <button
+                          onClick={() => eliminarIntegrante(solicitud.id)}
+                          className="bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold px-3 py-2.5 rounded-xl transition cursor-pointer"
+                          title="Rechazar / Eliminar"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           ) : (
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-              <h2 className="text-lg font-bold text-slate-900 mb-4">Integrantes Oficiales ({filtrados.length})</h2>
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <h2 className="text-lg font-bold text-slate-900">Integrantes Oficiales ({filtrados.length})</h2>
+                {sesionAdmin && (
+                  <button
+                    onClick={() => setMostrarModalNuevoIntegranteAdmin(true)}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5"
+                  >
+                    <span>➕</span> Registrar Nuevo Integrante
+                  </button>
+                )}
+              </div>
+
               {sesionAdmin && (
                 <div className="relative mb-4">
                   <input type="text" placeholder="Buscar integrante..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} className="w-full bg-slate-50 pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none" />
                   <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">🔍</span>
                 </div>
               )}
+
               <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
                 {filtrados.map((integrante) => (
                   <div key={integrante.id} className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition hover:border-blue-300">
@@ -1270,7 +1526,6 @@ export default function Home() {
           )}
         </div>
       ) : (
-        /* VISTA LIMPIA PARA VISITANTES (ÚNICAMENTE TARJETA DE BIENVENIDA) */
         <div className="text-center py-12 space-y-6">
           <div className="bg-white p-8 rounded-3xl border border-slate-200 max-w-lg mx-auto shadow-sm space-y-4">
             <h2 className="text-xl font-bold text-slate-900">Bienvenido a CODART</h2>
