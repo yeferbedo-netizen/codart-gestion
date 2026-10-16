@@ -1,3 +1,4 @@
+TypeScript
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -403,7 +404,7 @@ export default function Home() {
 
       {/* CONTENIDO PRINCIPAL */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-        {/* FORMULARIO */}
+        {/* FORMULARIO DE REGISTRO */}
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
           <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
             <span>📝</span> Registrar en {procesoActivo}
@@ -503,7 +504,7 @@ export default function Home() {
               </div>
             )}
 
-            {/* CAMPOS DE INSTRUMENTO Y SU TIPO (PRESTADO / PROPIO) */}
+            {/* CAMPOS DE INSTRUMENTO Y TIPO (PRESTADO / PROPIO) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               <input
                 type="text"
@@ -516,7 +517,7 @@ export default function Home() {
               <select
                 value={origenInstrumento}
                 onChange={(e) => setOrigenInstrumento(e.target.value)}
-                className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-slate-800 outline-none focus:border-blue-600 font-semibold text-sm"
+                className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-slate-800 outline-none focus:border-blue-600 font-semibold text-sm cursor-pointer"
               >
                 <option value="Prestado (CODART)">🎵 Prestado (CODART)</option>
                 <option value="Propio">⭐ Instrumento Propio</option>
