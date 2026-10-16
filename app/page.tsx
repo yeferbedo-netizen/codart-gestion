@@ -224,9 +224,12 @@ export default function Home() {
       {/* ENCABEZADO */}
       <div className="flex justify-between items-center mb-8 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-md">
-            🎵
-          </div>
+          {/* LOGO DE CODART */}
+          <img 
+            src="/logo.png" 
+            alt="Logo CODART" 
+            className="w-12 h-12 object-contain"
+          />
           <div>
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
               CODART
