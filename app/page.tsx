@@ -550,7 +550,6 @@ export default function Home() {
     const numLimpio = numCelular.replace(/\D/g, '');
     if (!numLimpio) return null;
     
-    // Si el número no incluye código de país de Colombia (57), se lo anteponemos
     const numFinal = numLimpio.length === 10 ? `57${numLimpio}` : numLimpio;
     const mensaje = encodeURIComponent(`Hola ${nombrePersona}, te contactamos desde la gestión de CODART.`);
     return `https://wa.me/${numFinal}?text=${mensaje}`;
@@ -820,7 +819,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* MODULO 2: GESTIÓN DE INTEGRANTES (DISEÑO COMPACTO Y NÚMERO CON LINK A WHATSAPP) */}
+          {/* MODULO 2: GESTIÓN DE INTEGRANTES */}
           {moduloActivo === 'integrantes' && (
             <div className="space-y-4">
               <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
@@ -1083,14 +1082,32 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL CONFIRMACIÓN REGISTRO EXITOSO */}
+      {/* MODAL CONFIRMACIÓN REGISTRO EXITOSO CON NOTIFICACIÓN DE CREDENCIALES */}
       {registroExitoso && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-sm text-center relative shadow-2xl space-y-4">
+          <div className="bg-white border border-slate-200 p-6 md:p-8 rounded-3xl w-full max-w-sm text-center relative shadow-2xl space-y-4">
             <span className="text-4xl block">🎉</span>
-            <h2 className="text-xl font-bold text-slate-900">¡Registro Recibido!</h2>
-            <p className="text-xs text-slate-500">Tu inscripción fue guardada correctamente y se encuentra pendiente de aprobación por el administrador.</p>
-            <button onClick={() => setRegistroExitoso(false)} className="w-full bg-slate-900 text-white font-bold py-2.5 rounded-xl text-xs transition cursor-pointer">
+            <h2 className="text-xl font-bold text-slate-900">¡Inscripción Recibida!</h2>
+            <p className="text-xs text-slate-500">
+              Tu solicitud ha sido guardada con éxito y se encuentra pendiente de aprobación por el administrador.
+            </p>
+
+            {/* ADVERTENCIA DE CREDENCIALES */}
+            <div className="bg-amber-50 border border-amber-200/80 p-3.5 rounded-2xl text-left space-y-1.5">
+              <div className="flex items-center gap-1.5 text-amber-900 font-bold text-xs">
+                <span>🔑</span>
+                <span>Instrucciones de Acceso</span>
+              </div>
+              <p className="text-[11px] text-amber-800 leading-relaxed">
+                Una vez aceptada tu solicitud, podrás ingresar a la plataforma con tus credenciales:
+              </p>
+              <ul className="text-[11px] font-mono text-amber-900 space-y-0.5 bg-amber-100/60 p-2 rounded-xl">
+                <li>• <strong>Usuario:</strong> Tu N° de identificación</li>
+                <li>• <strong>Contraseña:</strong> codart</li>
+              </ul>
+            </div>
+
+            <button onClick={() => setRegistroExitoso(false)} className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-xl text-xs transition cursor-pointer shadow-xs">
               Entendido
             </button>
           </div>
@@ -1139,7 +1156,7 @@ export default function Home() {
               <input type="text" placeholder="Nombre" value={nombreEdit} onChange={(e) => setNombreEdit(e.target.value)} className={inputStyle} required />
               <div className="grid grid-cols-3 gap-2">
                 <select value={tipoDocumentoEdit} onChange={(e) => setTipoDocumentoEdit(e.target.value)} className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs font-bold">
-                  <option value="C.C.">C.C.</option><option value="T.I.">T.I.</option><option value="R.C.">R.C me.</option><option value="C.E.">C.E.</option>
+                  <option value="C.C.">C.C.</option><option value="T.I.">T.I.</option><option value="R.C.">R.C.</option><option value="C.E.">C.E.</option>
                 </select>
                 <input type="text" placeholder="Documento" value={documentoEdit} onChange={(e) => setDocumentoEdit(e.target.value)} className="col-span-2 bg-slate-50 p-3 rounded-xl border border-slate-200 text-sm" required />
               </div>
