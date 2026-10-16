@@ -8,8 +8,11 @@ export default function Home() {
   const [integrantes, setIntegrantes] = useState<any[]>([]);
   const [cargando, setCargando] = useState(true);
 
-  // Estado para el Buscador
+  // Estado para el Buscador y Modo de Vista (Admin vs Público)
   const [busqueda, setBusqueda] = useState('');
+  const [modoRegistroPublico, setModoRegistroPublico] = useState(false);
+  const [mostrarQR, setMostrarQR] = useState(false);
+  const [registroExitoso, setRegistroExitoso] = useState(false);
 
   // Autenticación de Administrador
   const [sesion, setSesion] = useState<any>(null);
@@ -17,7 +20,7 @@ export default function Home() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  // Formulario (Creación)
+  // Formulario (Creación / Registro)
   const [nombre, setNombre] = useState('');
   const [tipoDocumento, setTipoDocumento] = useState('C.C.');
   const [documento, setDocumento] = useState('');
@@ -34,7 +37,7 @@ export default function Home() {
   const [documentoAcudiente, setDocumentoAcudiente] = useState('');
   const [celularAcudiente, setCelularAcudiente] = useState('');
 
-  // ESTADOS PARA EDICIÓN
+  // ESTADOS PARA EDICIÓN (Exclusivo Admin)
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [editNombre, setEditNombre] = useState('');
   const [editTipoDocumento, setEditTipoDocumento] = useState('C.C.');
@@ -125,23 +128,20 @@ export default function Home() {
   };
 
   const esAcudienteObligatorio = (valorEdad: string | number) => {
-    // Si estamos en Música Escolar, NO es obligatorio el acudiente
     if (procesoActivo === 'Proyecto de Música Escolar') return false;
     return esMenorDeEdad(valorEdad);
   };
 
+  // ENVÍO DE FORMULARIO (PÚBLICO O ADMIN)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!sesion) {
-      alert('Debes iniciar sesión como Administrador para registrar información en la nube.');
-      return;
-    }
     if (!nombre.trim() || !instrumento.trim()) {
       alert('El nombre y el instrumento son obligatorios.');
       return;
     }
 
     const numEdad = edad ? parseInt(edad, 10) : null;
+    const estadoInicial = sesion ? 'Aprobado' : 'Pendiente';
 
     const { data, error } = await supabase
       .from('integrantes')
@@ -161,6 +161,7 @@ export default function Home() {
           nombre_acudiente: nombreAcudiente.trim() || null,
           documento_acudiente: documentoAcudiente.trim() || null,
           celular_acudiente: celularAcudiente.trim() || null,
+          estado_registro: estadoInicial,
         },
       ])
       .select();
@@ -185,7 +186,28 @@ export default function Home() {
       setNombreAcudiente('');
       setDocumentoAcudiente('');
       setCelularAcudiente('');
+
+      if (!sesion) {
+        setRegistroExitoso(true);
+      } else {
+        alert('Integrante registrado y aprobado con éxito.');
+      }
     }
+  };
+
+  // APROBAR O RECHAZAR DESDE PANEL ADMIN
+  const cambiarEstadoRegistro = async (id: string, nuevoEstado: string) => {
+    if (!sesion) return;
+
+    if (nuevoEstado === 'Eliminar') {
+      const confirmar = window.confirm('¿Deseas rechazar y eliminar esta solicitud de registro?');
+      if (!confirmar) return;
+      await supabase.from('integrantes').delete().eq('id', id);
+    } else {
+      await supabase.from('integrantes').update({ estado_registro: nuevoEstado }).eq('id', id);
+    }
+
+    cargarDatos();
   };
 
   const iniciarEdicion = (integrante: any) => {
@@ -255,11 +277,15 @@ export default function Home() {
     setIntegrantes(integrantes.filter((integrante) => integrante.id !== id));
   };
 
+  // FILTRADO DE REGISTROS APROBADOS Y PENDIENTES
+  const pendientes = integrantes.filter((i) => i.estado_registro === 'Pendiente');
+  
   const filtrados = integrantes.filter((integrante) => {
+    const esAprobado = integrante.estado_registro !== 'Pendiente';
     const coincideProceso = integrante.proceso === procesoActivo;
     const termino = busqueda.toLowerCase().trim();
 
-    if (!termino) return coincideProceso;
+    if (!termino) return esAprobado && coincideProceso;
 
     const coincideTexto =
       (integrante.nombre && integrante.nombre.toLowerCase().includes(termino)) ||
@@ -271,10 +297,10 @@ export default function Home() {
       (integrante.nombre_acudiente && integrante.nombre_acudiente.toLowerCase().includes(termino)) ||
       (integrante.documento_acudiente && integrante.documento_acudiente.toLowerCase().includes(termino));
 
-    return coincideProceso && coincideTexto;
+    return esAprobado && coincideProceso && coincideTexto;
   });
 
-  // HELPER PARA CONSTRUIR EL CALENDARIO
+  // CALENDARIO HELPER
   const obtenerDiasDelMes = (fecha: Date | null) => {
     if (!fecha) return [];
     const anio = fecha.getFullYear();
@@ -311,34 +337,46 @@ export default function Home() {
   const editInputStyle =
     'w-full bg-slate-50 p-2 rounded-lg border border-slate-200 text-slate-800 text-xs outline-none focus:border-blue-600 mb-2';
 
+  // URL DE LA APLICACIÓN PARA EL CÓDIGO QR
+  const appUrl = typeof window !== 'undefined' ? window.location.href : 'https://codart-gestion.vercel.app';
+  const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(appUrl)}`;
+
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-800 p-8">
+    <main className="min-h-screen bg-slate-50 text-slate-800 p-4 md:p-8">
       {/* ENCABEZADO */}
-      <div className="flex justify-between items-center mb-8 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-8 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
         <div className="flex items-center gap-4">
           <img 
             src="/logo.jpg" 
             alt="Logo CODART" 
-            className="w-24 h-24 object-contain rounded-xl"
+            className="w-20 h-20 md:w-24 md:h-24 object-contain rounded-xl"
           />
           <div>
-            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">
               CODART
             </h1>
-            <p className="text-sm text-slate-500 font-medium">
+            <p className="text-xs md:text-sm text-slate-500 font-medium">
               Gestión de Integrantes e Instrumentos
             </p>
           </div>
         </div>
-        <div>
+        
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => setMostrarQR(true)}
+            className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-2 rounded-xl border border-slate-200 transition cursor-pointer flex items-center gap-1.5"
+          >
+            <span>📱</span> Código QR Inscripción
+          </button>
+
           {sesion ? (
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-blue-700 bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-200 font-medium">
-                Admin: {sesion.user.email}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-blue-700 bg-blue-50 px-3 py-2 rounded-xl border border-blue-200 font-medium">
+                Admin
               </span>
               <button
                 onClick={handleLogout}
-                className="bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold px-3 py-1.5 rounded-xl border border-rose-200 transition cursor-pointer"
+                className="bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold px-3 py-2 rounded-xl border border-rose-200 transition cursor-pointer"
               >
                 Cerrar Sesión
               </button>
@@ -346,15 +384,71 @@ export default function Home() {
           ) : (
             <button
               onClick={() => setMostrarModal(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm transition cursor-pointer flex items-center gap-2"
+              className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-sm transition cursor-pointer flex items-center gap-1.5"
             >
-              🔐 Iniciar Sesión Admin
+              🔐 Acceso Admin
             </button>
           )}
         </div>
       </div>
 
-      {/* MODAL LOGIN */}
+      {/* MODAL CÓDIGO QR */}
+      {mostrarQR && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-sm text-center relative shadow-2xl space-y-4">
+            <button
+              type="button"
+              onClick={() => setMostrarQR(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 cursor-pointer text-sm font-bold"
+            >
+              ✕
+            </button>
+            <h2 className="text-xl font-bold text-slate-900">
+              Escanea para Registrarte
+            </h2>
+            <p className="text-xs text-slate-500">
+              Escanea este código QR con la cámara de tu celular para ingresar al formulario de pre-inscripción de CODART.
+            </p>
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 inline-block">
+              <img src={qrApiUrl} alt="Código QR CODART" className="w-48 h-48 mx-auto rounded-xl shadow-xs" />
+            </div>
+            <p className="text-[11px] font-mono text-slate-400 break-all">
+              {appUrl}
+            </p>
+            <button
+              onClick={() => window.print()}
+              className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs transition cursor-pointer"
+            >
+              🖨️ Imprimir Código QR
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL REGISTRO EXITOSO PARA USUARIO PÚBLICO */}
+      {registroExitoso && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white border border-slate-200 p-8 rounded-3xl w-full max-w-md text-center space-y-4 shadow-2xl">
+            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-3xl">
+              ✓
+            </div>
+            <h2 className="text-2xl font-bold text-slate-900">
+              ¡Inscripción Enviada!
+            </h2>
+            <p className="text-sm text-slate-600">
+              Tu solicitud de registro ha sido recibida con éxito. El equipo administrativo de <strong>CODART</strong> revisará y aprobará tu inscripción.
+            </p>
+            <button
+              onClick={() => setRegistroExitoso(false)}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl text-sm transition cursor-pointer"
+            >
+              Entendido
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL LOGIN ADMIN */}
       {mostrarModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white border border-slate-200 p-6 rounded-2xl w-full max-w-md relative shadow-xl">
@@ -396,7 +490,61 @@ export default function Home() {
         </div>
       )}
 
-      {/* PESTAÑAS */}
+      {/* PANEL DE SOLICITUDES PENDIENTES (SOLO ADMIN) */}
+      {sesion && pendientes.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 mb-8 shadow-sm">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-bold text-amber-900 flex items-center gap-2">
+              <span>🔔</span> Solicitudes de Inscripción Pendientes ({pendientes.length})
+            </h2>
+            <span className="text-xs text-amber-700 font-medium">
+              Aaprueba o rechaza los registros realizados vía QR
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {pendientes.map((solicitud) => (
+              <div key={solicitud.id} className="bg-white border border-amber-200 rounded-xl p-4 shadow-xs space-y-2">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="font-bold text-slate-900">{solicitud.nombre}</h3>
+                    <p className="text-xs text-blue-600 font-semibold">{solicitud.proceso}</p>
+                  </div>
+                  <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold">
+                    Pendiente
+                  </span>
+                </div>
+
+                <div className="text-xs text-slate-600 space-y-1">
+                  <p>🎵 Instrumento: <strong>{solicitud.instrumento}</strong> ({solicitud.origen_instrumento || 'Prestado'})</p>
+                  <p>📄 Documento: {solicitud.tipo_documento} {solicitud.documento}</p>
+                  {solicitud.edad && <p>🎂 Edad: {solicitud.edad} años</p>}
+                  {solicitud.grado_escolar && <p>🎓 Grado: {solicitud.grado_escolar}</p>}
+                  {solicitud.celular && <p>💬 Celular: {solicitud.celular}</p>}
+                  {solicitud.nombre_acudiente && <p>👨‍👩‍👧 Acudiente: {solicitud.nombre_acudiente} ({solicitud.celular_acudiente})</p>}
+                </div>
+
+                <div className="flex gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    onClick={() => cambiarEstadoRegistro(solicitud.id, 'Aprobado')}
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 rounded-lg transition cursor-pointer"
+                  >
+                    ✓ Aprobar Integrante
+                  </button>
+                  <button
+                    onClick={() => cambiarEstadoRegistro(solicitud.id, 'Eliminar')}
+                    className="bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold px-3 py-2 rounded-lg transition cursor-pointer"
+                  >
+                    ✕ Rechazar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* PESTAÑAS DE PROCESOS */}
       <div className="flex gap-3 mb-8 flex-wrap">
         {[
           'Banda Filarmónica',
@@ -422,20 +570,19 @@ export default function Home() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
         {/* FORMULARIO DE REGISTRO */}
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-            <span>📝</span> Registrar en {procesoActivo}
+          <h2 className="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+            <span>📝</span> Registrarse en {procesoActivo}
           </h2>
-
-          {!sesion && (
-            <div className="text-xs text-amber-800 bg-amber-50 p-3 rounded-xl border border-amber-200 mb-4 font-medium">
-              ⚠️ Inicia sesión como administrador para habilitar el guardado en la nube.
-            </div>
-          )}
+          <p className="text-xs text-slate-500 mb-4">
+            {sesion 
+              ? 'Formulario en modo administrador (Aprobación directa).' 
+              : 'Formulario público. Tu registro quedará pendiente de aprobación por el Administrador.'}
+          </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <input
               type="text"
-              placeholder="Nombre completo"
+              placeholder="Nombre completo del participante"
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
               className={inputStyle}
@@ -475,14 +622,14 @@ export default function Home() {
               />
               <input
                 type="tel"
-                placeholder="Celular"
+                placeholder="Celular de contacto"
                 value={celular}
                 onChange={(e) => setCelular(e.target.value)}
                 className={inputStyle}
               />
             </div>
 
-            {/* CAMPO GRADO ESCOLAR (SOLO PARA PROYECTO DE MÚSICA ESCOLAR) */}
+            {/* CAMPO GRADO ESCOLAR */}
             {procesoActivo === 'Proyecto de Música Escolar' && (
               <div className="bg-indigo-50/70 border border-indigo-200 p-4 rounded-xl space-y-2">
                 <label className="text-xs font-bold text-indigo-900 flex items-center gap-1">
@@ -527,7 +674,7 @@ export default function Home() {
                 <div className="grid grid-cols-2 gap-2">
                   <input
                     type="text"
-                    placeholder="Cédula / Documento"
+                    placeholder="Cédula / Documento acudiente"
                     value={documentoAcudiente}
                     onChange={(e) => setDocumentoAcudiente(e.target.value)}
                     className="w-full bg-white p-2.5 rounded-lg border border-amber-200 text-slate-800 text-xs outline-none focus:border-amber-500"
@@ -543,11 +690,11 @@ export default function Home() {
               </div>
             )}
 
-            {/* CAMPOS DE INSTRUMENTO Y TIPO (PRESTADO / PROPIO) */}
+            {/* CAMPOS DE INSTRUMENTO */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               <input
                 type="text"
-                placeholder="Instrumento (ej. Clarinete)"
+                placeholder="Instrumento (ej. Clarinete, Trompeta)"
                 value={instrumento}
                 onChange={(e) => setInstrumento(e.target.value)}
                 className={inputStyle}
@@ -565,7 +712,7 @@ export default function Home() {
 
             <input
               type="text"
-              placeholder="Marca y Serie"
+              placeholder="Marca y Serie del Instrumento (opcional)"
               value={marcaSerie}
               onChange={(e) => setMarcaSerie(e.target.value)}
               className={inputStyle}
@@ -580,21 +727,21 @@ export default function Home() {
               <option value="Regular">Regular</option>
               <option value="Mantenimiento">Mantenimiento</option>
             </select>
+            
             <button
               type="submit"
-              disabled={!sesion}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 text-white py-3 rounded-xl transition font-bold shadow-sm cursor-pointer disabled:cursor-not-allowed"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl transition font-bold shadow-sm cursor-pointer"
             >
-              Registrar Integrante
+              {sesion ? 'Registrar e Integrar (Admin)' : 'Enviar Solicitud de Inscripción'}
             </button>
           </form>
         </div>
 
-        {/* LISTA DE INTEGRANTES */}
+        {/* LISTA DE INTEGRANTES APROBADOS */}
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
           <div className="flex justify-between items-center mb-4">
             <div>
-              <h2 className="text-lg font-bold text-slate-900">Integrantes</h2>
+              <h2 className="text-lg font-bold text-slate-900">Integrantes Oficiales</h2>
               <p className="text-xs text-slate-500 font-medium">{procesoActivo}</p>
             </div>
             {sesion && (
@@ -632,9 +779,9 @@ export default function Home() {
           {!sesion ? (
             <div className="text-center py-20 text-slate-400 space-y-3">
               <p className="text-3xl">🔒</p>
-              <p className="font-semibold text-slate-700">Información Protegida</p>
+              <p className="font-semibold text-slate-700">Lista Protegida</p>
               <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                Inicia sesión como administrador para ver y gestionar la lista de integrantes de este proceso.
+                Inicia sesión como administrador para gestionar la lista completa de integrantes de CODART.
               </p>
             </div>
           ) : cargando ? (
@@ -643,7 +790,7 @@ export default function Home() {
             <div className="text-center py-10 text-slate-400 text-sm">
               {busqueda
                 ? `No se encontraron coincidencias para "${busqueda}".`
-                : 'No hay integrantes registrados en este proceso.'}
+                : 'No hay integrantes registrados oficialmente en este proceso.'}
             </div>
           ) : (
             <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
@@ -653,7 +800,7 @@ export default function Home() {
                   className="bg-slate-50 border border-slate-200 rounded-xl p-4 transition hover:border-blue-300"
                 >
                   {editandoId === integrante.id ? (
-                    /* MODO EDICIÓN */
+                    /* MODO EDICIÓN EXCLUSIVO ADMIN */
                     <div className="space-y-2">
                       <p className="text-xs font-bold text-blue-600 mb-1">
                         Editando información:
@@ -703,18 +850,16 @@ export default function Home() {
                         />
                       </div>
 
-                      {/* EDICIÓN DE GRADO ESCOLAR */}
                       {procesoActivo === 'Proyecto de Música Escolar' && (
                         <input
                           type="text"
                           value={editGradoEscolar}
                           onChange={(e) => setEditGradoEscolar(e.target.value)}
                           className={editInputStyle}
-                          placeholder="Grado escolar (ej. Cuarto A)"
+                          placeholder="Grado escolar"
                         />
                       )}
 
-                      {/* EDICIÓN DE ACUDIENTE SI ES MENOR DE EDAD */}
                       {esMenorDeEdad(editEdad) && (
                         <div className="bg-amber-50 p-3 rounded-lg border border-amber-200 space-y-2 my-2">
                           <p className="text-xs font-bold text-amber-800">
@@ -817,7 +962,6 @@ export default function Home() {
                           )}
                         </div>
 
-                        {/* ETIQUETA DE GRADO ESCOLAR (SI APLICA) */}
                         {integrante.proceso === 'Proyecto de Música Escolar' && integrante.grado_escolar && (
                           <p className="text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md inline-block border border-indigo-200">
                             🎓 Grado: {integrante.grado_escolar}
@@ -841,8 +985,7 @@ export default function Home() {
 
                         {integrante.documento && (
                           <p className="text-xs text-slate-500">
-                            Documento: {integrante.tipo_documento || 'C.C.'}{' '}
-                            {integrante.documento}
+                            Documento: {integrante.tipo_documento || 'C.C.'} {integrante.documento}
                           </p>
                         )}
 
@@ -860,7 +1003,6 @@ export default function Home() {
                           </p>
                         )}
 
-                        {/* TARJETA VISUAL DE ACUDIENTE */}
                         {integrante.edad < 18 && integrante.nombre_acudiente && (
                           <div className="mt-2 bg-amber-50/80 border border-amber-200 p-2.5 rounded-lg text-xs space-y-0.5">
                             <p className="font-bold text-amber-900 flex items-center gap-1">
@@ -894,6 +1036,7 @@ export default function Home() {
                         </p>
                       </div>
 
+                      {/* BOTONES DE EDICIÓN SOLO VISIBLES PARA EL ADMIN */}
                       {sesion && (
                         <div className="flex flex-col gap-2 items-end justify-start">
                           <button
@@ -921,7 +1064,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* SECCIÓN DE CALENDARIO */}
+      {/* SECCIÓN DE CALENDARIO DE ENSAYOS */}
       <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm max-w-xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-2">
@@ -953,7 +1096,6 @@ export default function Home() {
           )}
         </div>
 
-        {/* ENCABEZADOS DE DÍAS */}
         <div className="grid grid-cols-7 gap-2 text-center text-xs font-bold text-slate-400 mb-2">
           <span>Lun</span>
           <span>Mar</span>
@@ -964,7 +1106,6 @@ export default function Home() {
           <span>Dom</span>
         </div>
 
-        {/* GRILLA DE DÍAS */}
         <div className="grid grid-cols-7 gap-2 text-center">
           {obtenerDiasDelMes(fechaCalendario).map((dia, index) => {
             if (!dia) {
