@@ -396,4 +396,161 @@ export default function Home() {
             <div className="text-center py-16 text-slate-400 space-y-3">
               <p className="text-3xl">🔒</p>
               <p className="font-semibold text-white">Información Protegida</p>
-              <p className="text-xs text-slate-500 max-
+              <p className="text-xs text-slate-500 max-w-xs mx-auto">
+                Inicia sesión como administrador para ver y gestionar la lista de integrantes de este proceso.
+              </p>
+            </div>
+          ) : cargando ? (
+            <div className="text-center py-10 text-slate-400">Cargando...</div>
+          ) : filtrados.length === 0 ? (
+            <div className="text-center py-10 text-slate-500">
+              No hay integrantes registrados.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filtrados.map((integrante) => (
+                <div
+                  key={integrante.id}
+                  className="bg-slate-950 border border-slate-800 rounded-xl p-4"
+                >
+                  {editandoId === integrante.id ? (
+                    /* MODO EDICIÓN */
+                    <div className="space-y-2">
+                      <p className="text-xs font-bold text-amber-400 mb-1">Editando información:</p>
+                      <input
+                        type="text"
+                        value={editNombre}
+                        onChange={(e) => setEditNombre(e.target.value)}
+                        className={editInputStyle}
+                        placeholder="Nombre completo"
+                      />
+                      <div className="flex gap-2">
+                        <select
+                          value={editTipoDocumento}
+                          onChange={(e) => setEditTipoDocumento(e.target.value)}
+                          className="w-1/3 bg-slate-900 p-2 rounded-lg border border-slate-700 text-white text-xs outline-none focus:border-amber-500 mb-2 font-semibold"
+                        >
+                          <option value="C.C.">C.C.</option>
+                          <option value="T.I.">T.I.</option>
+                          <option value="R.C.">R.C.</option>
+                          <option value="C.E.">C.E.</option>
+                          <option value="P.A.">P.A.</option>
+                        </select>
+                        <input
+                          type="text"
+                          value={editDocumento}
+                          onChange={(e) => setEditDocumento(e.target.value)}
+                          className="w-2/3 bg-slate-900 p-2 rounded-lg border border-slate-700 text-white text-xs outline-none focus:border-amber-500 mb-2"
+                          placeholder="Número de documento"
+                        />
+                      </div>
+                      <input
+                        type="tel"
+                        value={editCelular}
+                        onChange={(e) => setEditCelular(e.target.value)}
+                        className={editInputStyle}
+                        placeholder="Celular"
+                      />
+                      <input
+                        type="text"
+                        value={editInstrumento}
+                        onChange={(e) => setEditInstrumento(e.target.value)}
+                        className={editInputStyle}
+                        placeholder="Instrumento"
+                      />
+                      <input
+                        type="text"
+                        value={editMarcaSerie}
+                        onChange={(e) => setEditMarcaSerie(e.target.value)}
+                        className={editInputStyle}
+                        placeholder="Marca y Serie"
+                      />
+                      <select
+                        value={editEstadoInstrumento}
+                        onChange={(e) => setEditEstadoInstrumento(e.target.value)}
+                        className={editInputStyle}
+                      >
+                        <option value="Excelente">Excelente</option>
+                        <option value="Bueno">Bueno</option>
+                        <option value="Regular">Regular</option>
+                        <option value="Mantenimiento">Mantenimiento</option>
+                      </select>
+
+                      <div className="flex gap-2 pt-2">
+                        <button
+                          onClick={() => guardarEdicion(integrante.id)}
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer"
+                        >
+                          💾 Guardar
+                        </button>
+                        <button
+                          onClick={() => setEditandoId(null)}
+                          className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* MODO VISTA NORMAL */
+                    <div className="flex justify-between gap-4">
+                      <div>
+                        <h3 className="font-bold text-white">{integrante.nombre}</h3>
+                        <p className="text-sm text-amber-400 mt-1">
+                          🎵 {integrante.instrumento}
+                        </p>
+                        {integrante.documento && (
+                          <p className="text-xs text-slate-400 mt-1">
+                            Documento: {integrante.tipo_documento || 'C.C.'} {integrante.documento}
+                          </p>
+                        )}
+                        {integrante.celular && (
+                          <p className="text-xs mt-1">
+                            <a
+                              href={`https://wa.me/57${integrante.celular.replace(/\D/g, '')}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-emerald-400 hover:underline inline-flex items-center gap-1"
+                              title="Abrir WhatsApp"
+                            >
+                              💬 Celular: {integrante.celular}
+                            </a>
+                          </p>
+                        )}
+                        <p className="text-xs text-slate-400 mt-1">
+                          Marca / Serie: {integrante.marca_serie || 'No especificada'}
+                        </p>
+                        <p className="text-xs text-slate-400 mt-1">
+                          Estado: {integrante.estado_instrumento}
+                        </p>
+                      </div>
+
+                      <div className="flex flex-col gap-2 items-center justify-center">
+                        <button
+                          type="button"
+                          onClick={() => iniciarEdicion(integrante)}
+                          className="text-amber-400 hover:text-amber-300 p-1.5 text-sm cursor-pointer"
+                          title="Editar"
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => eliminarIntegrante(integrante.id)}
+                          className="text-rose-400 hover:text-rose-300 p-1.5 text-sm cursor-pointer"
+                          title="Eliminar"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </main>
+  );
+}
