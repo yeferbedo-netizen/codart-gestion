@@ -14,6 +14,7 @@ export default function Home() {
   const [mostrarModalInscripcion, setMostrarModalInscripcion] = useState(false);
   const [mostrarQR, setMostrarQR] = useState(false);
   const [registroExitoso, setRegistroExitoso] = useState(false);
+  const [enviandoInscripcion, setEnviandoInscripcion] = useState(false);
 
   // NUEVO INTEGRANTE / PROCESO (ADMIN)
   const [mostrarModalNuevoIntegranteAdmin, setMostrarModalNuevoIntegranteAdmin] = useState(false);
@@ -121,6 +122,13 @@ export default function Home() {
     };
   }, []);
 
+  // Al cambiar la sesión (login/logout de admin) se recargan los datos,
+  // porque las políticas RLS pueden devolver filas distintas según el rol.
+  useEffect(() => {
+    cargarDatos();
+    cargarPartituras();
+  }, [sesionAdmin]);
+
   const verificarSesiones = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     setSesionAdmin(session);
@@ -207,15 +215,23 @@ export default function Home() {
       return;
     }
 
-    const procesosDelEstudiante = procesosIntegrantes.filter(
-      p => p.documento && p.documento.toString().trim() === docLimpio
-    );
-    
-    const tieneAprobado = procesosDelEstudiante.some(
+    // Se consultan los procesos directamente para tener el estado más reciente
+    const { data: procesosDelEstudiante, error: errProcesos } = await supabase
+      .from('integrante_procesos')
+      .select('*')
+      .eq('documento', docLimpio);
+
+    if (errProcesos) {
+      alert('No se pudo verificar tu estado de aprobación: ' + errProcesos.message);
+      return;
+    }
+
+    const lista = procesosDelEstudiante || [];
+    const tieneAprobado = lista.some(
       p => p.estado_registro && p.estado_registro.trim().toLowerCase() === 'aprobado'
     );
 
-    if (procesosDelEstudiante.length > 0 && !tieneAprobado) {
+    if (lista.length > 0 && !tieneAprobado) {
       alert('Tus registros en CODART aún están pendientes de aprobación por el Administrador.');
       return;
     }
@@ -244,57 +260,76 @@ export default function Home() {
   // INSCRIPCIÓN PÚBLICA
   const handleSubmitInscripcion = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (enviandoInscripcion) return;
     if (!nombre.trim() || !documento.trim() || !instrumento.trim()) {
       alert('El nombre, número de documento y el instrumento son obligatorios.');
       return;
     }
 
-    const numEdad = edad ? parseInt(edad, 10) : null;
-    const docLimpio = documento.trim();
+    setEnviandoInscripcion(true);
 
-    await supabase.from('integrantes').upsert([
-      {
-        nombre: nombre.trim(),
-        tipo_documento: tipoDocumento,
-        documento: docLimpio,
-        edad: numEdad,
-        celular: celular.trim(),
-        grado_escolar: procesoInscripcion === 'Proyecto de Música Escolar' ? gradoEscolar.trim() : null,
-        nombre_acudiente: nombreAcudiente.trim() || null,
-        documento_acudiente: documentoAcudiente.trim() || null,
-        celular_acudiente: celularAcudiente.trim() || null,
+    try {
+      const numEdad = edad ? parseInt(edad, 10) : null;
+      const docLimpio = documento.trim();
+
+      // 1) Datos personales. ignoreDuplicates => ON CONFLICT DO NOTHING:
+      //    solo se necesita permiso de INSERT y nadie puede sobrescribir datos ajenos.
+      const { error: errorInt } = await supabase.from('integrantes').upsert([
+        {
+          nombre: nombre.trim(),
+          tipo_documento: tipoDocumento,
+          documento: docLimpio,
+          edad: numEdad,
+          celular: celular.trim(),
+          grado_escolar: procesoInscripcion === 'Proyecto de Música Escolar' ? gradoEscolar.trim() : null,
+          nombre_acudiente: nombreAcudiente.trim() || null,
+          documento_acudiente: documentoAcudiente.trim() || null,
+          celular_acudiente: celularAcudiente.trim() || null,
+        }
+      ], { onConflict: 'documento', ignoreDuplicates: true });
+
+      if (errorInt) {
+        console.error('Error guardando integrante:', errorInt);
+        alert('Error al guardar tus datos personales: ' + errorInt.message);
+        return;
       }
-    ], { onConflict: 'documento' });
 
-    const { error: errorProc } = await supabase.from('integrante_procesos').upsert([
-      {
-        documento: docLimpio,
-        proceso: procesoInscripcion,
-        instrumento: instrumento.trim(),
-        origen_instrumento: origenInstrumento,
-        marca_serie: marcaSerie.trim() || 'No especificada',
-        estado_registro: 'Pendiente'
+      // 2) Proceso + instrumento (queda pendiente de aprobación)
+      const { error: errorProc } = await supabase.from('integrante_procesos').upsert([
+        {
+          documento: docLimpio,
+          proceso: procesoInscripcion,
+          instrumento: instrumento.trim(),
+          origen_instrumento: origenInstrumento,
+          marca_serie: marcaSerie.trim() || 'No especificada',
+          estado_registro: 'Pendiente'
+        }
+      ], { onConflict: 'documento,proceso', ignoreDuplicates: true });
+
+      if (errorProc) {
+        console.error('Error guardando proceso:', errorProc);
+        alert('Error al inscribirse en el proceso: ' + errorProc.message);
+        return;
       }
-    ], { onConflict: 'documento,proceso' });
 
-    if (errorProc) {
-      alert('Error al inscribirse en el proceso: ' + errorProc.message);
-      return;
+      cargarDatos();
+      setNombre('');
+      setTipoDocumento('C.C.');
+      setDocumento('');
+      setEdad('');
+      setCelular('');
+      setGradoEscolar('');
+      setInstrumento('');
+      setOrigenInstrumento('Prestado (CODART)');
+      setMarcaSerie('');
+      setNombreAcudiente('');
+      setDocumentoAcudiente('');
+      setCelularAcudiente('');
+      setMostrarModalInscripcion(false);
+      setRegistroExitoso(true);
+    } finally {
+      setEnviandoInscripcion(false);
     }
-
-    cargarDatos();
-    setNombre('');
-    setDocumento('');
-    setEdad('');
-    setCelular('');
-    setGradoEscolar('');
-    setInstrumento('');
-    setMarcaSerie('');
-    setNombreAcudiente('');
-    setDocumentoAcudiente('');
-    setCelularAcudiente('');
-    setMostrarModalInscripcion(false);
-    setRegistroExitoso(true);
   };
 
   // APROBAR UNA SOLICITUD PENDIENTE INDIVIDUAL (ADMIN)
@@ -328,7 +363,7 @@ export default function Home() {
     const numEdad = edadNewAdmin ? parseInt(edadNewAdmin, 10) : null;
     const docLimpio = docNewAdmin.trim();
 
-    await supabase.from('integrantes').upsert([
+    const { error: errInt } = await supabase.from('integrantes').upsert([
       {
         nombre: nombreNewAdmin.trim(),
         tipo_documento: tipoDocNewAdmin,
@@ -341,6 +376,12 @@ export default function Home() {
         celular_acudiente: acudienteCelNewAdmin.trim() || null,
       }
     ], { onConflict: 'documento' });
+
+    if (errInt) {
+      console.error('Error guardando integrante:', errInt);
+      alert('Error al guardar los datos del integrante: ' + errInt.message);
+      return;
+    }
 
     const { error } = await supabase.from('integrante_procesos').upsert([
       {
@@ -374,7 +415,7 @@ export default function Home() {
     alert(`¡Inscrito y aprobado con éxito en ${procesoActivo}!`);
   };
 
-  // ABRIR MODAL EDITAR INTEGRANTE (CORREGIDO PARA CARGAR DATOS PERSONALES)
+  // ABRIR MODAL EDITAR INTEGRANTE (CARGA DATOS PERSONALES + DATOS DEL PROCESO)
   const abrirModalEditarIntegrante = (item: any) => {
     const infoPersonal = integrantes.find(i => 
       i.documento && item.documento && 
@@ -391,7 +432,7 @@ export default function Home() {
     setProcesoEdit(item.proceso || 'Banda Filarmónica');
     setInstrumentoEdit(item.instrumento || '');
     setOrigenInstrumentoEdit(item.origen_instrumento || 'Prestado (CODART)');
-    setMarcaSerieEdit(item.marca_serie || '');
+    setMarcaSerieEdit(item.marca_serie && item.marca_serie !== 'No especificada' ? item.marca_serie : '');
     setNombreAcudienteEdit(infoPersonal.nombre_acudiente || '');
     setDocumentoAcudienteEdit(infoPersonal.documento_acudiente || '');
     setCelularAcudienteEdit(infoPersonal.celular_acudiente || '');
@@ -405,26 +446,69 @@ export default function Home() {
 
     const numEdad = edadEdit ? parseInt(edadEdit, 10) : null;
     const docLimpio = documentoEdit.trim();
+    const docOriginal = String(integranteEditando.documento || '').trim();
 
-    await supabase.from('integrantes').update({
-      nombre: nombreEdit.trim(),
-      tipo_documento: tipoDocumentoEdit,
-      documento: docLimpio,
-      edad: numEdad,
-      celular: celularEdit.trim(),
-      grado_escolar: procesoEdit === 'Proyecto de Música Escolar' ? gradoEscolarEdit.trim() : null,
-      nombre_acudiente: nombreAcudienteEdit.trim() || null,
-      documento_acudiente: documentoAcudienteEdit.trim() || null,
-      celular_acudiente: celularAcudienteEdit.trim() || null,
-    }).eq('documento', integranteEditando.documento);
+    // Si el administrador cambió el número de documento, se migra primero
+    // el registro existente (y sus procesos) para no dejar filas huérfanas.
+    if (docOriginal && docLimpio !== docOriginal) {
+      const { error: errCambioInt } = await supabase
+        .from('integrantes')
+        .update({ documento: docLimpio })
+        .eq('documento', docOriginal);
+
+      if (errCambioInt) {
+        console.error('Error cambiando documento:', errCambioInt);
+        alert('Error al cambiar el documento: ' + errCambioInt.message);
+        return;
+      }
+
+      const { error: errCambioProc } = await supabase
+        .from('integrante_procesos')
+        .update({ documento: docLimpio })
+        .eq('documento', docOriginal);
+
+      if (errCambioProc) {
+        console.error('Error cambiando documento en procesos:', errCambioProc);
+        alert('Error al actualizar el documento en los procesos: ' + errCambioProc.message);
+        return;
+      }
+    }
+
+    // UPSERT: actualiza si la fila existe y la CREA si no existía
+    // (así se reparan los estudiantes que quedaron sin datos personales).
+    const { error: errInt } = await supabase.from('integrantes').upsert([
+      {
+        nombre: nombreEdit.trim(),
+        tipo_documento: tipoDocumentoEdit,
+        documento: docLimpio,
+        edad: numEdad,
+        celular: celularEdit.trim(),
+        grado_escolar: procesoEdit === 'Proyecto de Música Escolar' ? gradoEscolarEdit.trim() : null,
+        nombre_acudiente: nombreAcudienteEdit.trim() || null,
+        documento_acudiente: documentoAcudienteEdit.trim() || null,
+        celular_acudiente: celularAcudienteEdit.trim() || null,
+      }
+    ], { onConflict: 'documento' });
+
+    if (errInt) {
+      console.error('Error guardando integrante:', errInt);
+      alert('Error al guardar los datos personales: ' + errInt.message);
+      return;
+    }
 
     if (integranteEditando.idProceso) {
-      await supabase.from('integrante_procesos').update({
+      const { error: errProc } = await supabase.from('integrante_procesos').update({
         proceso: procesoEdit,
         instrumento: instrumentoEdit.trim(),
         origen_instrumento: origenInstrumentoEdit,
         marca_serie: marcaSerieEdit.trim() || 'No especificada',
       }).eq('id', integranteEditando.idProceso);
+
+      if (errProc) {
+        console.error('Error guardando proceso:', errProc);
+        alert('Error al guardar el proceso/instrumento: ' + errProc.message);
+        return;
+      }
     }
 
     setMostrarModalEditarIntegrante(false);
@@ -441,7 +525,11 @@ export default function Home() {
     if (!confirmar) return;
     
     if (idProceso) {
-      await supabase.from('integrante_procesos').delete().eq('id', String(idProceso).trim());
+      const { error } = await supabase.from('integrante_procesos').delete().eq('id', String(idProceso).trim());
+      if (error) {
+        alert('Error al retirar el registro: ' + error.message);
+        return;
+      }
     }
 
     cargarDatos();
@@ -453,7 +541,7 @@ export default function Home() {
     if (!sesionAdmin) return;
     if (!tituloCarpeta.trim()) return;
 
-    const { data } = await supabase.from('obras').insert([
+    const { data, error } = await supabase.from('obras').insert([
       {
         titulo: tituloCarpeta.trim(),
         compositor_arreglista: compositorCarpeta.trim() || 'No especificado',
@@ -461,6 +549,11 @@ export default function Home() {
         link_audio: linkAudioCarpeta.trim() || null,
       },
     ]).select();
+
+    if (error) {
+      alert('Error al crear la obra: ' + error.message);
+      return;
+    }
 
     setTituloCarpeta('');
     setCompositorCarpeta('');
@@ -483,7 +576,7 @@ export default function Home() {
     e.preventDefault();
     if (!sesionAdmin || !carpetaEditando) return;
 
-    await supabase
+    const { error } = await supabase
       .from('obras')
       .update({
         titulo: tituloCarpetaEdit.trim(),
@@ -491,6 +584,11 @@ export default function Home() {
         link_audio: linkAudioCarpetaEdit.trim() || null,
       })
       .eq('id', carpetaEditando.id);
+
+    if (error) {
+      alert('Error al guardar la obra: ' + error.message);
+      return;
+    }
 
     setMostrarModalEditarCarpeta(false);
     setCarpetaEditando(null);
@@ -519,12 +617,12 @@ export default function Home() {
         let familiaDetectada = 'General / Score';
         const nombreLower = archivo.name.toLowerCase();
         if (nombreLower.includes('clarinete') || nombreLower.includes('saxo') || nombreLower.includes('flauta')) familiaDetectada = 'Vientos Madera';
-        else if (nombreLower.includes('trompeta') || nombreLower.includes('trombón') || nombreLower.includes('corno')) familiaDetectada = 'Vientos Metal';
-        else if (nombreLower.includes('bateria') || nombreLower.includes('percursion')) familiaDetectada = 'Percusión';
+        else if (nombreLower.includes('trompeta') || nombreLower.includes('trombón') || nombreLower.includes('trombon') || nombreLower.includes('corno')) familiaDetectada = 'Vientos Metal';
+        else if (nombreLower.includes('bateria') || nombreLower.includes('percursion') || nombreLower.includes('percusion')) familiaDetectada = 'Percusión';
 
         const instrumentoNombre = archivo.name.substring(0, archivo.name.lastIndexOf('.')) || archivo.name;
 
-        await supabase.from('particelas').insert([
+        const { error: errParticela } = await supabase.from('particelas').insert([
           {
             obra_id: obraSeleccionadaDrive.id,
             instrumento: instrumentoNombre,
@@ -532,6 +630,8 @@ export default function Home() {
             url_pdf: publicUrlData.publicUrl,
           },
         ]);
+
+        if (errParticela) throw errParticela;
       }
       setArchivosSeleccionados([]);
       setMostrarModalSubirArchivos(false);
@@ -546,7 +646,11 @@ export default function Home() {
   const eliminarCarpetaObra = async (id: string) => {
     if (!sesionAdmin) return;
     if (!window.confirm('¿Seguro que deseas eliminar esta carpeta?')) return;
-    await supabase.from('obras').delete().eq('id', id);
+    const { error } = await supabase.from('obras').delete().eq('id', id);
+    if (error) {
+      alert('Error al eliminar la obra: ' + error.message);
+      return;
+    }
     if (obraSeleccionadaDrive?.id === id) setObraSeleccionadaDrive(null);
     cargarPartituras();
   };
@@ -582,15 +686,17 @@ export default function Home() {
     );
   });
 
+  // Se mezcla primero el proceso y luego los datos personales, para que
+  // el nombre y demás datos personales nunca se pierdan; idProceso siempre es el id del proceso.
   const listaIntegrantesMostrables = procesosEnProcesoActivo.map(proc => {
     const infoPersonal = integrantes.find(i => i.documento && proc.documento && i.documento.toString().trim() === proc.documento.toString().trim());
-    return { ...infoPersonal, ...proc, idProceso: proc.id };
+    return { ...proc, ...infoPersonal, idProceso: proc.id };
   }).filter(item => {
     const termino = busqueda.toLowerCase().trim();
     if (!termino) return true;
     return (
       (item.nombre && item.nombre.toLowerCase().includes(termino)) ||
-      (item.documento && item.documento.toLowerCase().includes(termino)) ||
+      (item.documento && item.documento.toString().toLowerCase().includes(termino)) ||
       (item.instrumento && item.instrumento.toLowerCase().includes(termino))
     );
   });
@@ -1091,8 +1197,12 @@ export default function Home() {
                 <input type="text" placeholder="Marca / Número de serie" value={marcaSerie} onChange={(e) => setMarcaSerie(e.target.value)} className={inputStyle} />
               </div>
 
-              <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl text-sm transition cursor-pointer shadow-xs">
-                Enviar Formulario
+              <button
+                type="submit"
+                disabled={enviandoInscripcion}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl text-sm transition cursor-pointer shadow-xs disabled:opacity-50"
+              >
+                {enviandoInscripcion ? 'Enviando...' : 'Enviar Formulario'}
               </button>
             </form>
           </div>
@@ -1136,7 +1246,7 @@ export default function Home() {
           <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-lg relative shadow-2xl my-8">
             <button onClick={() => setMostrarModalNuevoIntegranteAdmin(false)} className="absolute top-4 right-4 text-slate-400 font-bold cursor-pointer">✕</button>
             <h2 className="text-xl font-bold text-slate-900 mb-1">Inscribir en {procesoActivo}</h2>
-            <form onSubmit={handleRegistroAdminDirecto} className="space-y-3 mt-4">
+            <form onSubmit={handleRegistroAdminDirecto} className="space-y-3 mt-4 max-h-[70vh] overflow-y-auto pr-1">
               <input type="text" placeholder="Nombre completo" value={nombreNewAdmin} onChange={(e) => setNombreNewAdmin(e.target.value)} className={inputStyle} required />
               <div className="grid grid-cols-3 gap-2">
                 <select value={tipoDocNewAdmin} onChange={(e) => setTipoDocNewAdmin(e.target.value)} className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs font-bold">
@@ -1150,6 +1260,16 @@ export default function Home() {
               </div>
               {procesoActivo === 'Proyecto de Música Escolar' && (
                 <input type="text" placeholder="Grado Escolar (ej. Cuarto A)" value={gradoNewAdmin} onChange={(e) => setGradoNewAdmin(e.target.value)} className={inputStyle} required />
+              )}
+              {esMenorDeEdad(edadNewAdmin) && (
+                <div className="bg-amber-50/70 border border-amber-200 p-4 rounded-xl space-y-3">
+                  <span className="text-xs font-bold text-amber-800 block">👨‍👩‍👧 Datos del Acudiente</span>
+                  <input type="text" placeholder="Nombre del acudiente" value={acudienteNombreNewAdmin} onChange={(e) => setAcudienteNombreNewAdmin(e.target.value)} className="w-full bg-white p-2.5 rounded-lg border border-amber-200 text-sm" />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input type="text" placeholder="Documento acudiente" value={acudienteDocNewAdmin} onChange={(e) => setAcudienteDocNewAdmin(e.target.value)} className="bg-white p-2.5 rounded-lg border border-amber-200 text-sm" />
+                    <input type="tel" placeholder="Celular acudiente" value={acudienteCelNewAdmin} onChange={(e) => setAcudienteCelNewAdmin(e.target.value)} className="bg-white p-2.5 rounded-lg border border-amber-200 text-sm" />
+                  </div>
+                </div>
               )}
               <input type="text" placeholder="Instrumento" value={instrumentoNewAdmin} onChange={(e) => setInstrumentoNewAdmin(e.target.value)} className={inputStyle} required />
               <select value={origenNewAdmin} onChange={(e) => setOrigenNewAdmin(e.target.value)} className={inputStyle}>
@@ -1171,11 +1291,11 @@ export default function Home() {
           <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-lg relative shadow-2xl my-8">
             <button onClick={() => setMostrarModalEditarIntegrante(false)} className="absolute top-4 right-4 text-slate-400 font-bold cursor-pointer">✕</button>
             <h2 className="text-xl font-bold text-slate-900 mb-4">Editar Datos de Integrante</h2>
-            <form onSubmit={guardarEdicionIntegrante} className="space-y-3">
+            <form onSubmit={guardarEdicionIntegrante} className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
               <input type="text" placeholder="Nombre" value={nombreEdit} onChange={(e) => setNombreEdit(e.target.value)} className={inputStyle} required />
               <div className="grid grid-cols-3 gap-2">
                 <select value={tipoDocumentoEdit} onChange={(e) => setTipoDocumentoEdit(e.target.value)} className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs font-bold">
-                  <option value="C.C.">C.C.</option><option value="T.I.">T.I.</option><option value="R.C.">R.C.</option><option value="C.E.">C.E.</option>
+                  <option value="C.C.">C.C.</option><option value="T.I.">T.I.</option><option value="R.C.">R.C.</option><option value="C.E.">C.E.</option><option value="P.A.">P.A.</option>
                 </select>
                 <input type="text" placeholder="Documento" value={documentoEdit} onChange={(e) => setDocumentoEdit(e.target.value)} className="col-span-2 bg-slate-50 p-3 rounded-xl border border-slate-200 text-sm" required />
               </div>
@@ -1183,6 +1303,19 @@ export default function Home() {
                 <input type="number" placeholder="Edad" value={edadEdit} onChange={(e) => setEdadEdit(e.target.value)} className={inputStyle} />
                 <input type="tel" placeholder="Celular" value={celularEdit} onChange={(e) => setCelularEdit(e.target.value)} className={inputStyle} />
               </div>
+              {procesoEdit === 'Proyecto de Música Escolar' && (
+                <input type="text" placeholder="Grado Escolar (ej. Cuarto A)" value={gradoEscolarEdit} onChange={(e) => setGradoEscolarEdit(e.target.value)} className={inputStyle} />
+              )}
+              {(esMenorDeEdad(edadEdit) || nombreAcudienteEdit || documentoAcudienteEdit || celularAcudienteEdit) && (
+                <div className="bg-amber-50/70 border border-amber-200 p-4 rounded-xl space-y-3">
+                  <span className="text-xs font-bold text-amber-800 block">👨‍👩‍👧 Datos del Acudiente</span>
+                  <input type="text" placeholder="Nombre del acudiente" value={nombreAcudienteEdit} onChange={(e) => setNombreAcudienteEdit(e.target.value)} className="w-full bg-white p-2.5 rounded-lg border border-amber-200 text-sm" />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input type="text" placeholder="Documento acudiente" value={documentoAcudienteEdit} onChange={(e) => setDocumentoAcudienteEdit(e.target.value)} className="bg-white p-2.5 rounded-lg border border-amber-200 text-sm" />
+                    <input type="tel" placeholder="Celular acudiente" value={celularAcudienteEdit} onChange={(e) => setCelularAcudienteEdit(e.target.value)} className="bg-white p-2.5 rounded-lg border border-amber-200 text-sm" />
+                  </div>
+                </div>
+              )}
               <input type="text" placeholder="Instrumento" value={instrumentoEdit} onChange={(e) => setInstrumentoEdit(e.target.value)} className={inputStyle} required />
               <select value={origenInstrumentoEdit} onChange={(e) => setOrigenInstrumentoEdit(e.target.value)} className={inputStyle}>
                 <option value="Prestado (CODART)">Prestado (CODART)</option>
