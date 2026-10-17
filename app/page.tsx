@@ -724,41 +724,41 @@ export default function Home() {
     return coincideProceso && ((o.titulo && o.titulo.toLowerCase().includes(termino)) || (o.compositor_arreglista && o.compositor_arreglista.toLowerCase().includes(termino)));
   });
 
-  const inputStyle = 'w-full bg-slate-50 p-3 rounded-xl border border-slate-200 text-slate-800 outline-none focus:border-blue-600 focus:bg-white transition text-sm';
+  const inputStyle = 'w-full bg-slate-50 p-3.5 md:p-4 rounded-xl border border-slate-200 text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:bg-white transition text-sm md:text-base';
   const appUrl = typeof window !== 'undefined' ? window.location.href : 'https://codart-gestion.vercel.app';
   const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(appUrl)}`;
 
   const usuarioAutenticado = Boolean(sesionAdmin || sesionIntegrante);
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-800 p-4 md:p-8">
+    <main className="min-h-screen bg-slate-50 text-slate-800 px-4 py-5 md:px-8 md:py-8 xl:px-10 2xl:px-12">
       {/* ENCABEZADO */}
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
+      <div className="max-w-[1700px] mx-auto flex flex-col md:flex-row justify-between items-center gap-5 mb-7 bg-white p-5 md:p-6 xl:p-7 rounded-3xl border border-slate-200 shadow-sm">
         <div className="flex items-center gap-4">
-          <img src="/logo.jpg" alt="Logo CODART" className="w-20 h-20 md:w-24 md:h-24 object-contain rounded-xl" />
+          <img src="/logo.jpg" alt="Logo CODART" className="w-20 h-20 md:w-24 md:h-24 xl:w-28 xl:h-28 object-contain rounded-2xl" />
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">CODART</h1>
-            <p className="text-xs md:text-sm text-slate-500 font-medium">Plataforma de Gestión Musical y Documental</p>
+            <h1 className="text-2xl md:text-3xl xl:text-4xl font-extrabold text-slate-900 tracking-tight">CODART</h1>
+            <p className="text-sm md:text-base text-slate-500 font-medium mt-1">Plataforma de Gestión Musical y Documental</p>
           </div>
         </div>
         
         <div className="flex items-center gap-2 flex-wrap">
           {sesionAdmin ? (
             <div className="flex items-center gap-2">
-              <span className="text-xs text-blue-700 bg-blue-50 px-3 py-2.5 rounded-xl border border-blue-200 font-bold">Admin</span>
-              <button onClick={handleLogoutAdmin} className="bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold px-3 py-2.5 rounded-xl border border-rose-200 transition cursor-pointer">Cerrar Sesión</button>
+              <span className="text-sm text-blue-700 bg-blue-50 px-4 py-3 rounded-xl border border-blue-200 font-bold">Admin</span>
+              <button onClick={handleLogoutAdmin} className="bg-rose-50 hover:bg-rose-100 text-rose-600 text-sm font-bold px-4 py-3 rounded-xl border border-rose-200 transition cursor-pointer">Cerrar Sesión</button>
             </div>
           ) : sesionIntegrante ? (
             <div className="flex items-center gap-2">
-              <span className="text-xs text-emerald-700 bg-emerald-50 px-3 py-2.5 rounded-xl border border-emerald-200 font-bold">Músico: {sesionIntegrante.nombre}</span>
-              <button onClick={handleLogoutIntegrante} className="bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold px-3 py-2.5 rounded-xl border border-rose-200 transition cursor-pointer">Cerrar Sesión</button>
+              <span className="text-sm text-emerald-700 bg-emerald-50 px-4 py-3 rounded-xl border border-emerald-200 font-bold">Músico: {sesionIntegrante.nombre}</span>
+              <button onClick={handleLogoutIntegrante} className="bg-rose-50 hover:bg-rose-100 text-rose-600 text-sm font-bold px-4 py-3 rounded-xl border border-rose-200 transition cursor-pointer">Cerrar Sesión</button>
             </div>
           ) : (
             <div className="flex items-center gap-2 flex-wrap">
-              <button onClick={() => setMostrarModalInscripcion(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs md:text-sm font-bold px-4 py-2.5 rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5"><span>📝</span> Inscripción</button>
-              <button onClick={() => setMostrarQR(true)} className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs md:text-sm font-bold px-3 py-2.5 rounded-xl border border-slate-200 transition cursor-pointer flex items-center gap-1.5"><span>🔗</span> Código QR</button>
-              <button onClick={() => setMostrarModalIntegrante(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs md:text-sm font-bold px-3 py-2.5 rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5"><span>🎵</span> Iniciar sesión estudiantes</button>
-              <button onClick={() => setMostrarModalAdmin(true)} className="bg-slate-800 hover:bg-slate-900 text-white text-xs md:text-sm font-bold px-3 py-2.5 rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5"><span>🔐</span> Acceso admin</button>
+              <button onClick={() => setMostrarModalInscripcion(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm md:text-base font-bold px-5 md:px-6 py-3 md:py-3.5 rounded-xl shadow-sm transition cursor-pointer flex items-center gap-2"><span>📝</span> Inscripción</button>
+              <button onClick={() => setMostrarQR(true)} className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm md:text-base font-bold px-5 py-3 md:py-3.5 rounded-xl border border-slate-200 transition cursor-pointer flex items-center gap-2"><span>🔗</span> Código QR</button>
+              <button onClick={() => setMostrarModalIntegrante(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm md:text-base font-bold px-5 py-3 md:py-3.5 rounded-xl shadow-sm transition cursor-pointer flex items-center gap-2"><span>🎵</span> Iniciar sesión estudiantes</button>
+              <button onClick={() => setMostrarModalAdmin(true)} className="bg-slate-800 hover:bg-slate-900 text-white text-sm md:text-base font-bold px-5 py-3 md:py-3.5 rounded-xl shadow-sm transition cursor-pointer flex items-center gap-2"><span>🔐</span> Acceso admin</button>
             </div>
           )}
         </div>
@@ -768,10 +768,10 @@ export default function Home() {
       {usuarioAutenticado ? (
         <>
           {/* MENÚ DE NAVEGACIÓN PRINCIPAL */}
-          <div className="flex border-b border-slate-200 mb-6 gap-2">
+          <div className="max-w-[1700px] mx-auto flex border-b border-slate-200 mb-7 gap-2 overflow-x-auto">
             <button
               onClick={() => setModuloActivo('partituras')}
-              className={`pb-3 px-4 text-sm font-bold transition cursor-pointer border-b-2 ${
+              className={`pb-4 px-5 md:px-6 text-base md:text-lg font-bold transition cursor-pointer border-b-2 ${
                 moduloActivo === 'partituras'
                   ? 'border-indigo-600 text-indigo-600'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -781,7 +781,7 @@ export default function Home() {
             </button>
             <button
               onClick={() => setModuloActivo('integrantes')}
-              className={`pb-3 px-4 text-sm font-bold transition cursor-pointer border-b-2 ${
+              className={`pb-4 px-5 md:px-6 text-base md:text-lg font-bold transition cursor-pointer border-b-2 ${
                 moduloActivo === 'integrantes'
                   ? 'border-indigo-600 text-indigo-600'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -792,7 +792,7 @@ export default function Home() {
             {sesionAdmin && (
               <button
                 onClick={() => setModuloActivo('pendientes')}
-                className={`pb-3 px-4 text-sm font-bold transition cursor-pointer border-b-2 flex items-center gap-2 ${
+                className={`pb-4 px-5 md:px-6 text-base md:text-lg font-bold transition cursor-pointer border-b-2 flex items-center gap-2 ${
                   moduloActivo === 'pendientes'
                     ? 'border-amber-500 text-amber-600'
                     : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -800,7 +800,7 @@ export default function Home() {
               >
                 <span>⏳ Solicitudes Pendientes</span>
                 {pendientesList.length > 0 && (
-                  <span className="bg-amber-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">
+                  <span className="bg-amber-500 text-white text-xs font-black px-2.5 py-1 rounded-full">
                     {pendientesList.length}
                   </span>
                 )}
@@ -809,12 +809,12 @@ export default function Home() {
           </div>
 
           {/* SELECCIÓN DE PROGRAMA / PROCESO (EXCLUSIVO PROYECTO ESCOLAR PARA ADMIN) */}
-          <div className="flex gap-2 overflow-x-auto pb-4 mb-6 scrollbar-none">
+          <div className="max-w-[1700px] mx-auto flex gap-3 overflow-x-auto pb-4 mb-7 scrollbar-none">
             {listaProcesosVisibles.map((proc) => (
               <button
                 key={proc}
                 onClick={() => setProcesoActivo(proc)}
-                className={`px-4 py-2 rounded-xl text-xs md:text-sm font-bold whitespace-nowrap transition cursor-pointer ${
+                className={`px-5 md:px-6 py-3 rounded-xl text-sm md:text-base font-bold whitespace-nowrap transition cursor-pointer ${
                   procesoActivo === proc
                     ? 'bg-slate-900 text-white shadow-xs'
                     : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
@@ -825,10 +825,48 @@ export default function Home() {
             ))}
           </div>
 
+          {/* RESUMEN RÁPIDO */}
+          <div className="max-w-[1700px] mx-auto grid grid-cols-2 xl:grid-cols-3 gap-4 md:gap-5 mb-7">
+            <div className="bg-white p-5 md:p-6 rounded-2xl border border-slate-200 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs md:text-sm font-bold uppercase tracking-wider text-slate-400">Obras</p>
+                  <p className="text-2xl md:text-3xl font-extrabold text-slate-900 mt-1">{obrasFiltradas.length}</p>
+                </div>
+                <div className="w-11 h-11 md:w-12 md:h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl md:text-2xl">📚</div>
+              </div>
+              <p className="text-xs md:text-sm text-slate-500 mt-2">Disponibles en {procesoActivo}</p>
+            </div>
+
+            <div className="bg-white p-5 md:p-6 rounded-2xl border border-slate-200 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs md:text-sm font-bold uppercase tracking-wider text-slate-400">Integrantes</p>
+                  <p className="text-2xl md:text-3xl font-extrabold text-slate-900 mt-1">{listaIntegrantesMostrables.length}</p>
+                </div>
+                <div className="w-11 h-11 md:w-12 md:h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl md:text-2xl">👥</div>
+              </div>
+              <p className="text-xs md:text-sm text-slate-500 mt-2">Activos en este proceso</p>
+            </div>
+
+            {sesionAdmin && (
+              <div className="col-span-2 xl:col-span-1 bg-white p-5 md:p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs md:text-sm font-bold uppercase tracking-wider text-slate-400">Pendientes</p>
+                    <p className="text-2xl md:text-3xl font-extrabold text-slate-900 mt-1">{pendientesList.length}</p>
+                  </div>
+                  <div className="w-11 h-11 md:w-12 md:h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl md:text-2xl">⏳</div>
+                </div>
+                <p className="text-xs md:text-sm text-slate-500 mt-2">Solicitudes por revisar</p>
+              </div>
+            )}
+          </div>
+
           {/* MODULO 1: REPOSITORIO DE PARTITURAS */}
           {moduloActivo === 'partituras' && (
-            <div className="space-y-6">
-              <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+            <div className="max-w-[1700px] mx-auto space-y-7">
+              <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 bg-white p-5 md:p-6 rounded-3xl border border-slate-200 shadow-sm">
                 <input
                   type="text"
                   placeholder={`Buscar obra o compositor en ${procesoActivo}...`}
@@ -839,19 +877,19 @@ export default function Home() {
                 {sesionAdmin && (
                   <button
                     onClick={() => setMostrarModalNuevaCarpeta(true)}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-3 rounded-xl transition cursor-pointer whitespace-nowrap"
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm md:text-base font-bold px-5 md:px-6 py-3.5 rounded-xl transition cursor-pointer whitespace-nowrap shadow-sm"
                   >
                     + Nueva Obra
                   </button>
                 )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-7">
                 {/* LISTA DE OBRAS */}
-                <div className="md:col-span-1 space-y-3">
-                  <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Obras Disponibles</h3>
+                <div className="md:col-span-1 space-y-4">
+                  <h3 className="text-sm md:text-base font-extrabold text-slate-500 uppercase tracking-wider">Obras Disponibles</h3>
                   {obrasFiltradas.length === 0 ? (
-                    <div className="p-8 text-center bg-white rounded-2xl border border-slate-200 text-slate-400 text-sm">
+                    <div className="p-8 text-center bg-white rounded-2xl border border-slate-200 text-slate-400 text-sm md:text-base">
                       No hay obras registradas para este proceso.
                     </div>
                   ) : (
@@ -859,15 +897,15 @@ export default function Home() {
                       <div
                         key={obra.id}
                         onClick={() => setObraSeleccionadaDrive(obra)}
-                        className={`p-4 rounded-2xl border transition cursor-pointer flex justify-between items-center ${
+                        className={`p-5 rounded-2xl border transition cursor-pointer flex justify-between items-center shadow-sm hover:shadow-md ${
                           obraSeleccionadaDrive?.id === obra.id
                             ? 'bg-indigo-50/60 border-indigo-200 text-indigo-900 shadow-xs'
                             : 'bg-white border-slate-200 hover:border-slate-300 text-slate-800'
                         }`}
                       >
                         <div>
-                          <h4 className="font-bold text-sm">{obra.titulo}</h4>
-                          <p className="text-xs text-slate-500">{obra.compositor_arreglista}</p>
+                          <h4 className="font-bold text-base md:text-lg leading-snug">{obra.titulo}</h4>
+                          <p className="text-sm text-slate-500 mt-1">{obra.compositor_arreglista}</p>
                         </div>
                         {sesionAdmin && (
                           <div className="flex items-center gap-1">
@@ -899,17 +937,17 @@ export default function Home() {
                 {/* VISTA DETALLADA DE LA OBRA Y PARTICELAS */}
                 <div className="md:col-span-2">
                   {obraSeleccionadaDrive ? (
-                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-6">
+                    <div className="bg-white p-6 md:p-7 rounded-3xl border border-slate-200 shadow-sm space-y-6">
                       <div className="flex justify-between items-start border-b border-slate-100 pb-4">
                         <div>
-                          <h2 className="text-2xl font-bold text-slate-900">{obraSeleccionadaDrive.titulo}</h2>
+                          <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900">{obraSeleccionadaDrive.titulo}</h2>
                           <p className="text-sm text-slate-500">{obraSeleccionadaDrive.compositor_arreglista}</p>
                           {obraSeleccionadaDrive.link_audio && (
                             <a
                               href={obraSeleccionadaDrive.link_audio}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 text-xs text-indigo-600 font-bold mt-2 hover:underline"
+                              className="inline-flex items-center gap-2 text-sm text-indigo-600 font-bold mt-3 hover:underline"
                             >
                               <span>🎧</span> Escuchar Referencia de Audio
                             </a>
@@ -918,7 +956,7 @@ export default function Home() {
                         {sesionAdmin && (
                           <button
                             onClick={() => setMostrarModalSubirArchivos(true)}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition cursor-pointer"
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold px-4 md:px-5 py-3 rounded-xl transition cursor-pointer shadow-sm"
                           >
                             + Subir PDF
                           </button>
@@ -926,7 +964,7 @@ export default function Home() {
                       </div>
 
                       <div className="space-y-3">
-                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Particelas / PDF</h4>
+                        <h4 className="text-sm font-extrabold text-slate-400 uppercase tracking-wider">Particelas / PDF</h4>
                         {particelas.filter((p) => p.obra_id === obraSeleccionadaDrive.id).length === 0 ? (
                           <p className="text-xs text-slate-400 italic">No hay archivos PDF adjuntos en esta obra.</p>
                         ) : (
@@ -939,10 +977,10 @@ export default function Home() {
                                   href={p.url_pdf}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="p-3 bg-slate-50 hover:bg-indigo-50/40 border border-slate-200 rounded-xl flex items-center justify-between text-xs font-bold text-slate-700 hover:text-indigo-900 transition"
+                                  className="p-4 bg-slate-50 hover:bg-indigo-50/40 border border-slate-200 rounded-xl flex items-center justify-between text-sm font-bold text-slate-700 hover:text-indigo-900 transition"
                                 >
                                   <span className="truncate pr-2">📄 {p.instrumento}</span>
-                                  <span className="text-[10px] text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md">Abrir</span>
+                                  <span className="text-xs text-indigo-600 bg-indigo-50 px-2.5 py-1.5 rounded-lg">Abrir</span>
                                 </a>
                               ))}
                           </div>
@@ -950,9 +988,9 @@ export default function Home() {
                       </div>
                     </div>
                   ) : (
-                    <div className="bg-white p-12 text-center rounded-2xl border border-slate-200 text-slate-400 space-y-2">
+                    <div className="bg-white p-12 md:p-16 text-center rounded-3xl border border-slate-200 text-slate-400 space-y-3 shadow-sm">
                       <span className="text-3xl block">🎼</span>
-                      <p className="text-sm font-medium">Selecciona una obra de la izquierda para ver e imprimir sus particelas.</p>
+                      <p className="text-base font-medium">Selecciona una obra de la izquierda para ver e imprimir sus particelas.</p>
                     </div>
                   )}
                 </div>
@@ -963,7 +1001,7 @@ export default function Home() {
           {/* MODULO 2: GESTIÓN DE INTEGRANTES */}
           {moduloActivo === 'integrantes' && (
             <div className="space-y-4">
-              <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+              <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 bg-white p-5 md:p-6 rounded-3xl border border-slate-200 shadow-sm">
                 <input
                   type="text"
                   placeholder={`Buscar integrante en ${procesoActivo}...`}
@@ -974,7 +1012,7 @@ export default function Home() {
                 {sesionAdmin && (
                   <button
                     onClick={() => setMostrarModalNuevoIntegranteAdmin(true)}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-3 rounded-xl transition cursor-pointer whitespace-nowrap"
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm md:text-base font-bold px-5 md:px-6 py-3.5 rounded-xl transition cursor-pointer whitespace-nowrap shadow-sm"
                   >
                     + Registrar Integrante
                   </button>
@@ -982,9 +1020,9 @@ export default function Home() {
               </div>
 
               {/* VISTA COMPACTA TIPO TARJETAS / FILAS VERSÁTILES */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                 {listaIntegrantesMostrables.length === 0 ? (
-                  <div className="col-span-full bg-white p-8 text-center text-slate-400 rounded-2xl border border-slate-200 text-xs">
+                  <div className="col-span-full bg-white p-8 text-center text-slate-400 rounded-2xl border border-slate-200 text-sm md:text-base">
                     No hay integrantes activos en {procesoActivo}.
                   </div>
                 ) : (
@@ -993,12 +1031,12 @@ export default function Home() {
                     return (
                       <div
                         key={item.idProceso}
-                        className="bg-white p-3.5 rounded-2xl border border-slate-200 hover:border-slate-300 shadow-2xs flex justify-between items-start transition space-y-1"
+                        className="bg-white p-5 rounded-2xl border border-slate-200 hover:border-indigo-200 hover:shadow-md shadow-sm flex justify-between items-start transition space-y-2"
                       >
                         <div className="space-y-1.5">
                           <div>
-                            <h4 className="font-bold text-slate-900 text-sm leading-tight">{item.nombre || 'Sin nombre'}</h4>
-                            <p className="text-[11px] font-semibold text-indigo-600">{item.instrumento} • <span className="text-slate-400 font-normal">{item.origen_instrumento}</span></p>
+                            <h4 className="font-bold text-slate-900 text-base md:text-lg leading-tight">{item.nombre || 'Sin nombre'}</h4>
+                            <p className="text-sm font-semibold text-indigo-600">{item.instrumento} • <span className="text-slate-400 font-normal">{item.origen_instrumento}</span></p>
                           </div>
 
                           {/* BOTÓN O NÚMERO DE REGISTRO LINK A WHATSAPP */}
@@ -1009,20 +1047,20 @@ export default function Home() {
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 title="Tocar para chatear por WhatsApp"
-                                className="inline-flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 text-emerald-800 text-[11px] font-mono font-bold px-2.5 py-1 rounded-lg transition cursor-pointer"
+                                className="inline-flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 text-emerald-800 text-sm font-mono font-bold px-3 py-2 rounded-lg transition cursor-pointer"
                               >
                                 <span>💬</span>
                                 <span>{item.tipo_documento} {item.documento}</span>
                               </a>
                             ) : (
-                              <span className="inline-flex items-center gap-1 bg-slate-50 border border-slate-200 text-slate-600 text-[11px] font-mono px-2 py-0.5 rounded-lg">
+                              <span className="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200 text-slate-600 text-xs font-mono px-3 py-1.5 rounded-lg">
                                 🆔 {item.tipo_documento} {item.documento}
                               </span>
                             )}
                           </div>
 
                           {item.marca_serie && item.marca_serie !== 'No especificada' && (
-                            <p className="text-[10px] text-slate-400">Marca/Serie: {item.marca_serie}</p>
+                            <p className="text-xs text-slate-400">Marca/Serie: {item.marca_serie}</p>
                           )}
                         </div>
 
@@ -1054,8 +1092,8 @@ export default function Home() {
 
           {/* MODULO 3: SOLICITUDES PENDIENTES (ADMIN) */}
           {moduloActivo === 'pendientes' && sesionAdmin && (
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-              <h2 className="text-xl font-bold text-slate-900">Solicitudes de Inscripción Pendientes</h2>
+            <div className="bg-white p-6 md:p-7 rounded-3xl border border-slate-200 shadow-sm space-y-5">
+              <h2 className="text-xl md:text-2xl font-extrabold text-slate-900">Solicitudes de Inscripción Pendientes</h2>
               <div className="divide-y divide-slate-100">
                 {pendientesList.length === 0 ? (
                   <p className="text-sm text-slate-400 py-4">No hay solicitudes pendientes por revisar.</p>
@@ -1072,20 +1110,20 @@ export default function Home() {
                           <h4 className="font-bold text-slate-900 text-base">
                             {nombreMostrado}
                           </h4>
-                          <p className="text-xs text-slate-500">
+                          <p className="text-sm text-slate-500 mt-1">
                             Doc: <strong>{p.documento}</strong> | Proceso: <strong className="text-slate-800">{p.proceso}</strong> | Instrumento: <strong className="text-indigo-600">{p.instrumento}</strong>
                           </p>
                         </div>
                         <div className="flex gap-2">
                           <button
                             onClick={() => aprobarSolicitud(p.id)}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition cursor-pointer"
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm px-5 py-3 rounded-xl transition cursor-pointer shadow-sm"
                           >
                             ✓ Aprobar
                           </button>
                           <button
                             onClick={() => eliminarProcesoIntegrante(p.id)}
-                            className="bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs px-3 py-2 rounded-xl transition cursor-pointer"
+                            className="bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-sm px-4 py-3 rounded-xl transition cursor-pointer"
                           >
                             ✕ Rechazar
                           </button>
@@ -1100,13 +1138,13 @@ export default function Home() {
         </>
       ) : (
         /* VISTA PÚBLICA (SOLO MUESTRA BIENVENIDA) */
-        <div className="bg-white p-10 md:p-16 rounded-3xl border border-slate-200 shadow-xs text-center max-w-2xl mx-auto my-12 space-y-6">
+        <div className="bg-white p-10 md:p-16 rounded-3xl border border-slate-200 shadow-sm text-center max-w-3xl mx-auto my-12 space-y-7">
           <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center mx-auto text-3xl shadow-xs">
             🎼
           </div>
           <div>
             <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Bienvenido a la Plataforma CODART</h2>
-            <p className="text-sm text-slate-500 mt-2 max-w-md mx-auto">
+            <p className="text-base text-slate-500 mt-3 max-w-xl mx-auto leading-relaxed">
               Accede a nuestro repositorio de partituras e información institucional. Selecciona una de las opciones superiores para continuar.
             </p>
           </div>
@@ -1118,7 +1156,7 @@ export default function Home() {
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-sm text-center relative shadow-2xl space-y-4">
             <button onClick={() => setMostrarQR(false)} className="absolute top-4 right-4 text-slate-400 font-bold cursor-pointer">✕</button>
-            <h2 className="text-xl font-bold text-slate-900">Código QR de la Plataforma</h2>
+            <h2 className="text-xl md:text-2xl font-extrabold text-slate-900">Código QR de la Plataforma</h2>
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 inline-block">
               <img src={qrApiUrl} alt="QR CODART" className="w-48 h-48 mx-auto rounded-xl shadow-xs" />
             </div>
@@ -1132,12 +1170,12 @@ export default function Home() {
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-md relative shadow-2xl space-y-4">
             <button onClick={() => setMostrarModalIntegrante(false)} className="absolute top-4 right-4 text-slate-400 font-bold cursor-pointer">✕</button>
-            <h2 className="text-xl font-bold text-slate-900">🎵 Acceso para Estudiantes</h2>
-            <p className="text-xs text-slate-500">Ingresa tu número de documento y la contraseña universal <strong>codart</strong>.</p>
+            <h2 className="text-xl md:text-2xl font-extrabold text-slate-900">🎵 Acceso para Estudiantes</h2>
+            <p className="text-sm text-slate-500 mt-1">Ingresa tu número de documento y la contraseña universal <strong>codart</strong>.</p>
             <form onSubmit={handleLoginIntegrante} className="space-y-3">
               <input type="text" placeholder="Número de documento" value={documentoLogin} onChange={(e) => setDocumentoLogin(e.target.value)} className={inputStyle} required />
               <input type="password" placeholder="Contraseña (codart)" value={passwordLogin} onChange={(e) => setPasswordLogin(e.target.value)} className={inputStyle} required />
-              <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl text-sm transition cursor-pointer">Ingresar al Repositorio</button>
+              <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl text-base transition cursor-pointer shadow-sm">Ingresar al Repositorio</button>
             </form>
           </div>
         </div>
@@ -1152,7 +1190,7 @@ export default function Home() {
             <form onSubmit={handleLoginAdmin} className="space-y-4">
               <input type="email" placeholder="Correo electrónico" value={emailAdmin} onChange={(e) => setEmailAdmin(e.target.value)} className={inputStyle} required />
               <input type="password" placeholder="Contraseña" value={passwordAdmin} onChange={(e) => setPasswordAdmin(e.target.value)} className={inputStyle} required />
-              <button type="submit" className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold p-3 rounded-xl text-sm transition cursor-pointer">Ingresar</button>
+              <button type="submit" className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold p-3.5 rounded-xl text-base transition cursor-pointer shadow-sm">Ingresar</button>
             </form>
           </div>
         </div>
@@ -1230,8 +1268,8 @@ export default function Home() {
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white border border-slate-200 p-6 md:p-8 rounded-3xl w-full max-w-sm text-center relative shadow-2xl space-y-4">
             <span className="text-4xl block">🎉</span>
-            <h2 className="text-xl font-bold text-slate-900">¡Inscripción Recibida!</h2>
-            <p className="text-xs text-slate-500">
+            <h2 className="text-xl md:text-2xl font-extrabold text-slate-900">¡Inscripción Recibida!</h2>
+            <p className="text-sm text-slate-500 mt-1">
               Tu solicitud ha sido guardada con éxito y se encuentra pendiente de aprobación por el administrador.
             </p>
 
@@ -1249,7 +1287,7 @@ export default function Home() {
               </ul>
             </div>
 
-            <button onClick={() => setRegistroExitoso(false)} className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-xl text-xs transition cursor-pointer shadow-xs">
+            <button onClick={() => setRegistroExitoso(false)} className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-xl text-sm md:text-base transition cursor-pointer shadow-sm">
               Entendido
             </button>
           </div>
@@ -1293,7 +1331,7 @@ export default function Home() {
                 <option value="Propio">Propio</option>
               </select>
               <input type="text" placeholder="Marca / Serie" value={marcaNewAdmin} onChange={(e) => setMarcaNewAdmin(e.target.value)} className={inputStyle} />
-              <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl text-sm transition cursor-pointer">
+              <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl text-base transition cursor-pointer shadow-sm">
                 Registrar y Aprobar
               </button>
             </form>
@@ -1351,12 +1389,12 @@ export default function Home() {
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-md relative shadow-2xl space-y-4">
             <button onClick={() => setMostrarModalNuevaCarpeta(false)} className="absolute top-4 right-4 text-slate-400 font-bold cursor-pointer">✕</button>
-            <h2 className="text-xl font-bold text-slate-900">Nueva Obra para {procesoActivo}</h2>
+            <h2 className="text-xl md:text-2xl font-extrabold text-slate-900">Nueva Obra para {procesoActivo}</h2>
             <form onSubmit={crearCarpetaObra} className="space-y-3">
               <input type="text" placeholder="Título de la obra" value={tituloCarpeta} onChange={(e) => setTituloCarpeta(e.target.value)} className={inputStyle} required />
               <input type="text" placeholder="Compositor / Arreglista" value={compositorCarpeta} onChange={(e) => setCompositorCarpeta(e.target.value)} className={inputStyle} />
               <input type="url" placeholder="Link de audio de referencia (YouTube/Drive/MP3)" value={linkAudioCarpeta} onChange={(e) => setLinkAudioCarpeta(e.target.value)} className={inputStyle} />
-              <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl text-sm transition cursor-pointer">
+              <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl text-base transition cursor-pointer shadow-sm">
                 Crear Obra
               </button>
             </form>
@@ -1369,7 +1407,7 @@ export default function Home() {
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-md relative shadow-2xl space-y-4">
             <button onClick={() => setMostrarModalEditarCarpeta(false)} className="absolute top-4 right-4 text-slate-400 font-bold cursor-pointer">✕</button>
-            <h2 className="text-xl font-bold text-slate-900">Editar Obra</h2>
+            <h2 className="text-xl md:text-2xl font-extrabold text-slate-900">Editar Obra</h2>
             <form onSubmit={guardarEdicionCarpeta} className="space-y-3">
               <input type="text" placeholder="Título de la obra" value={tituloCarpetaEdit} onChange={(e) => setTituloCarpetaEdit(e.target.value)} className={inputStyle} required />
               <input type="text" placeholder="Compositor / Arreglista" value={compositorCarpetaEdit} onChange={(e) => setCompositorCarpetaEdit(e.target.value)} className={inputStyle} />
@@ -1387,8 +1425,8 @@ export default function Home() {
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-md relative shadow-2xl space-y-4">
             <button onClick={() => setMostrarModalSubirArchivos(false)} className="absolute top-4 right-4 text-slate-400 font-bold cursor-pointer">✕</button>
-            <h2 className="text-xl font-bold text-slate-900">Subir Particelas PDF</h2>
-            <p className="text-xs text-slate-500">Obra: <strong>{obraSeleccionadaDrive.titulo}</strong></p>
+            <h2 className="text-xl md:text-2xl font-extrabold text-slate-900">Subir Particelas PDF</h2>
+            <p className="text-sm text-slate-500 mt-1">Obra: <strong>{obraSeleccionadaDrive.titulo}</strong></p>
             <form onSubmit={subirArchivosSeleccionados} className="space-y-4">
               <input
                 type="file"
