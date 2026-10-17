@@ -430,6 +430,7 @@ export default function Home() {
     setCelularEdit(infoPersonal.celular || item.celular || '');
     setGradoEscolarEdit(infoPersonal.grado_escolar || item.grado_escolar || '');
     setProcesoEdit(item.proceso || 'Banda Filarmónica');
+    // Instrumento, origen y marca SIEMPRE vienen del proceso (integrante_procesos)
     setInstrumentoEdit(item.instrumento || '');
     setOrigenInstrumentoEdit(item.origen_instrumento || 'Prestado (CODART)');
     setMarcaSerieEdit(item.marca_serie && item.marca_serie !== 'No especificada' ? item.marca_serie : '');
@@ -686,11 +687,26 @@ export default function Home() {
     );
   });
 
-  // Se mezcla primero el proceso y luego los datos personales, para que
-  // el nombre y demás datos personales nunca se pierdan; idProceso siempre es el id del proceso.
+  // Cada dato se toma de su propia tabla para que las columnas antiguas
+  // (instrumento, marca_serie, etc. que aún existen en "integrantes") no pisen nada:
+  // - Datos del proceso/instrumento -> integrante_procesos
+  // - Datos personales -> integrantes
   const listaIntegrantesMostrables = procesosEnProcesoActivo.map(proc => {
     const infoPersonal = integrantes.find(i => i.documento && proc.documento && i.documento.toString().trim() === proc.documento.toString().trim());
-    return { ...proc, ...infoPersonal, idProceso: proc.id };
+    return {
+      // Datos del proceso (siempre vienen de integrante_procesos)
+      ...proc,
+      // Datos personales (siempre vienen de integrantes)
+      nombre: infoPersonal?.nombre ?? proc.nombre,
+      tipo_documento: infoPersonal?.tipo_documento ?? proc.tipo_documento,
+      edad: infoPersonal?.edad ?? proc.edad,
+      celular: infoPersonal?.celular ?? proc.celular,
+      grado_escolar: infoPersonal?.grado_escolar ?? proc.grado_escolar,
+      nombre_acudiente: infoPersonal?.nombre_acudiente,
+      documento_acudiente: infoPersonal?.documento_acudiente,
+      celular_acudiente: infoPersonal?.celular_acudiente,
+      idProceso: proc.id,
+    };
   }).filter(item => {
     const termino = busqueda.toLowerCase().trim();
     if (!termino) return true;
