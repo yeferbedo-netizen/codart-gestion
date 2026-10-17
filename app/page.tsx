@@ -122,8 +122,6 @@ export default function Home() {
     };
   }, []);
 
-  // Al cambiar la sesión (login/logout de admin) se recargan los datos,
-  // porque las políticas RLS pueden devolver filas distintas según el rol.
   useEffect(() => {
     cargarDatos();
     cargarPartituras();
@@ -215,7 +213,6 @@ export default function Home() {
       return;
     }
 
-    // Se consultan los procesos directamente para tener el estado más reciente
     const { data: procesosDelEstudiante, error: errProcesos } = await supabase
       .from('integrante_procesos')
       .select('*')
@@ -272,8 +269,6 @@ export default function Home() {
       const numEdad = edad ? parseInt(edad, 10) : null;
       const docLimpio = documento.trim();
 
-      // 1) Datos personales. ignoreDuplicates => ON CONFLICT DO NOTHING:
-      //    solo se necesita permiso de INSERT y nadie puede sobrescribir datos ajenos.
       const { error: errorInt } = await supabase.from('integrantes').upsert([
         {
           nombre: nombre.trim(),
@@ -294,7 +289,6 @@ export default function Home() {
         return;
       }
 
-      // 2) Proceso + instrumento (queda pendiente de aprobación)
       const { error: errorProc } = await supabase.from('integrante_procesos').upsert([
         {
           documento: docLimpio,
@@ -332,7 +326,7 @@ export default function Home() {
     }
   };
 
-  // APROBAR UNA SOLICITUD PENDIENTE INDIVIDUAL (ADMIN)
+  // APROBAR SOLICITUD (ADMIN)
   const aprobarSolicitud = async (idProceso: string) => {
     if (!sesionAdmin) return;
     const idLimpio = String(idProceso).trim();
@@ -351,7 +345,7 @@ export default function Home() {
     alert('¡Proceso e instrumento aprobado con éxito!');
   };
 
-  // REGISTRO DIRECTO DESDE ADMIN (CON UPSERT PARA EVITAR ERRORES DE DUPLICADO)
+  // REGISTRO DIRECTO DESDE ADMIN
   const handleRegistroAdminDirecto = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!sesionAdmin) return;
@@ -415,7 +409,7 @@ export default function Home() {
     alert(`¡Inscrito y aprobado con éxito en ${procesoActivo}!`);
   };
 
-  // ABRIR MODAL EDITAR INTEGRANTE (CARGA DATOS PERSONALES + DATOS DEL PROCESO)
+  // ABRIR MODAL EDITAR INTEGRANTE
   const abrirModalEditarIntegrante = (item: any) => {
     const infoPersonal = integrantes.find(i => 
       i.documento && item.documento && 
@@ -430,7 +424,6 @@ export default function Home() {
     setCelularEdit(infoPersonal.celular || item.celular || '');
     setGradoEscolarEdit(infoPersonal.grado_escolar || item.grado_escolar || '');
     setProcesoEdit(item.proceso || 'Banda Filarmónica');
-    // Instrumento, origen y marca SIEMPRE vienen del proceso (integrante_procesos)
     setInstrumentoEdit(item.instrumento || '');
     setOrigenInstrumentoEdit(item.origen_instrumento || 'Prestado (CODART)');
     setMarcaSerieEdit(item.marca_serie && item.marca_serie !== 'No especificada' ? item.marca_serie : '');
@@ -449,8 +442,6 @@ export default function Home() {
     const docLimpio = documentoEdit.trim();
     const docOriginal = String(integranteEditando.documento || '').trim();
 
-    // Si el administrador cambió el número de documento, se migra primero
-    // el registro existente (y sus procesos) para no dejar filas huérfanas.
     if (docOriginal && docLimpio !== docOriginal) {
       const { error: errCambioInt } = await supabase
         .from('integrantes')
@@ -475,8 +466,6 @@ export default function Home() {
       }
     }
 
-    // UPSERT: actualiza si la fila existe y la CREA si no existía
-    // (así se reparan los estudiantes que quedaron sin datos personales).
     const { error: errInt } = await supabase.from('integrantes').upsert([
       {
         nombre: nombreEdit.trim(),
@@ -518,7 +507,7 @@ export default function Home() {
     alert('¡Información actualizada con éxito!');
   };
 
-  // ELIMINAR O RECHAZAR UNA SOLICITUD/PROCESO DE FORMA INDEPENDIENTE
+  // ELIMINAR PROCESO DE INTEGRANTE
   const eliminarProcesoIntegrante = async (idProceso: string) => {
     if (!sesionAdmin) return;
 
@@ -536,7 +525,7 @@ export default function Home() {
     cargarDatos();
   };
 
-  // CREAR CARPETA OBRA
+  // CREAR CARPETA / OBRA (SOLO ADMIN)
   const crearCarpetaObra = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!sesionAdmin) return;
@@ -564,7 +553,7 @@ export default function Home() {
     if (data && data[0]) setObraSeleccionadaDrive(data[0]);
   };
 
-  // EDITAR CARPETA
+  // EDITAR CARPETA / OBRA (SOLO ADMIN)
   const abrirModalEditarCarpeta = (obra: any) => {
     setCarpetaEditando(obra);
     setTituloCarpetaEdit(obra.titulo || '');
@@ -596,7 +585,7 @@ export default function Home() {
     cargarPartituras();
   };
 
-  // SUBIR ARCHIVOS
+  // SUBIR ARCHIVOS DE PARTITURAS AL BUCKET 'drive' (SOLO ADMIN)
   const subirArchivosSeleccionados = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!sesionAdmin || !obraSeleccionadaDrive || archivosSeleccionados.length === 0) return;
@@ -606,14 +595,17 @@ export default function Home() {
       for (const archivo of archivosSeleccionados) {
         const nombreLimpio = archivo.name.replace(/[^a-zA-Z0-9.-]/g, '_');
         const fileName = `${Date.now()}_${nombreLimpio}`;
+        const pathBucket = `${obraSeleccionadaDrive.id}/${fileName}`;
         
+        // 1. Subir al bucket 'drive' en Supabase Storage
         const { data: storageData, error: storageError } = await supabase.storage
-          .from('partituras')
-          .upload(fileName, archivo, { cacheControl: '3600', upsert: false });
+          .from('drive')
+          .upload(pathBucket, archivo, { cacheControl: '3600', upsert: false });
 
         if (storageError) throw storageError;
 
-        const { data: publicUrlData } = supabase.storage.from('partituras').getPublicUrl(storageData.path);
+        // 2. Obtener la URL pública del archivo en el bucket 'drive'
+        const { data: publicUrlData } = supabase.storage.from('drive').getPublicUrl(storageData.path);
 
         let familiaDetectada = 'General / Score';
         const nombreLower = archivo.name.toLowerCase();
@@ -623,12 +615,14 @@ export default function Home() {
 
         const instrumentoNombre = archivo.name.substring(0, archivo.name.lastIndexOf('.')) || archivo.name;
 
+        // 3. Registrar en la tabla 'particelas' con la ruta del archivo para poder borrarlo después
         const { error: errParticela } = await supabase.from('particelas').insert([
           {
             obra_id: obraSeleccionadaDrive.id,
             instrumento: instrumentoNombre,
             familia: familiaDetectada,
             url_pdf: publicUrlData.publicUrl,
+            file_path: storageData.path,
           },
         ]);
 
@@ -637,16 +631,48 @@ export default function Home() {
       setArchivosSeleccionados([]);
       setMostrarModalSubirArchivos(false);
       cargarPartituras();
+      alert('¡Archivo(s) subido(s) con éxito al Drive!');
     } catch (err: any) {
-      alert('Error: ' + err.message);
+      alert('Error al subir archivo: ' + err.message);
     } finally {
       setSubiendoArchivos(false);
     }
   };
 
+  // ELIMINAR UN ARCHIVO / PARTICELA ESPECÍFICO (SOLO ADMIN)
+  const eliminarParticela = async (particela: any) => {
+    if (!sesionAdmin) return;
+    if (!window.confirm(`¿Seguro que deseas eliminar el archivo "${particela.instrumento}"?`)) return;
+
+    try {
+      // 1. Si tenemos la ruta almacenada, se borra de Supabase Storage (bucket 'drive')
+      if (particela.file_path) {
+        const { error: storageErr } = await supabase.storage
+          .from('drive')
+          .remove([particela.file_path]);
+
+        if (storageErr) console.error('Error al borrar de Storage:', storageErr.message);
+      }
+
+      // 2. Borrar el registro de la base de datos
+      const { error: dbErr } = await supabase
+        .from('particelas')
+        .delete()
+        .eq('id', particela.id);
+
+      if (dbErr) throw dbErr;
+
+      cargarPartituras();
+    } catch (err: any) {
+      alert('Error al eliminar la particela: ' + err.message);
+    }
+  };
+
+  // ELIMINAR OBRA COMPLETA (SOLO ADMIN)
   const eliminarCarpetaObra = async (id: string) => {
     if (!sesionAdmin) return;
-    if (!window.confirm('¿Seguro que deseas eliminar esta carpeta?')) return;
+    if (!window.confirm('¿Seguro que deseas eliminar esta obra y todos sus archivos?')) return;
+    
     const { error } = await supabase.from('obras').delete().eq('id', id);
     if (error) {
       alert('Error al eliminar la obra: ' + error.message);
@@ -656,7 +682,7 @@ export default function Home() {
     cargarPartituras();
   };
 
-  // FUNCIÓN AUXILIAR PARA OBTENER LINK DE WHATSAPP
+  // WHATSAPP
   const obtenerLinkWhatsApp = (numCelular: string, nombrePersona: string) => {
     if (!numCelular) return null;
     const numLimpio = numCelular.replace(/\D/g, '');
@@ -667,18 +693,15 @@ export default function Home() {
     return `https://wa.me/${numFinal}?text=${mensaje}`;
   };
 
-  // LISTADO DE PROCESOS DISPONIBLES EN BOTONES DE FILTRO
   const listaProcesosVisibles = sesionAdmin
     ? ['Banda Filarmónica', 'Banda de Marcha', 'Prebanda', 'Proyecto de Música Escolar']
     : ['Banda Filarmónica', 'Banda de Marcha', 'Prebanda'];
 
-  // FILTRAR SOLICITUDES PENDIENTES CON COMPARACIÓN FLEXIBLE
   const pendientesList = procesosIntegrantes.filter(p => {
     if (!p.estado_registro) return false;
     return p.estado_registro.trim().toLowerCase() === 'pendiente';
   });
 
-  // FILTRAR INTEGRANTES ACTIVOS EN EL PROCESO ACTIVO
   const procesosEnProcesoActivo = procesosIntegrantes.filter(p => {
     if (!p.proceso || !p.estado_registro) return false;
     return (
@@ -687,16 +710,10 @@ export default function Home() {
     );
   });
 
-  // Cada dato se toma de su propia tabla para que las columnas antiguas
-  // (instrumento, marca_serie, etc. que aún existen en "integrantes") no pisen nada:
-  // - Datos del proceso/instrumento -> integrante_procesos
-  // - Datos personales -> integrantes
   const listaIntegrantesMostrables = procesosEnProcesoActivo.map(proc => {
     const infoPersonal = integrantes.find(i => i.documento && proc.documento && i.documento.toString().trim() === proc.documento.toString().trim());
     return {
-      // Datos del proceso (siempre vienen de integrante_procesos)
       ...proc,
-      // Datos personales (siempre vienen de integrantes)
       nombre: infoPersonal?.nombre ?? proc.nombre,
       tipo_documento: infoPersonal?.tipo_documento ?? proc.tipo_documento,
       edad: infoPersonal?.edad ?? proc.edad,
@@ -777,7 +794,7 @@ export default function Home() {
                   : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
             >
-              📚 Repositorio de Partituras
+              📚 Drive de Partituras
             </button>
             <button
               onClick={() => setModuloActivo('integrantes')}
@@ -808,7 +825,7 @@ export default function Home() {
             )}
           </div>
 
-          {/* SELECCIÓN DE PROGRAMA / PROCESO (EXCLUSIVO PROYECTO ESCOLAR PARA ADMIN) */}
+          {/* SELECCIÓN DE PROGRAMA / PROCESO */}
           <div className="max-w-[1700px] mx-auto flex gap-3 overflow-x-auto pb-4 mb-7 scrollbar-none">
             {listaProcesosVisibles.map((proc) => (
               <button
@@ -863,7 +880,7 @@ export default function Home() {
             )}
           </div>
 
-          {/* MODULO 1: REPOSITORIO DE PARTITURAS */}
+          {/* MÓDULO 1: REPOSITORIO TIPO DRIVE */}
           {moduloActivo === 'partituras' && (
             <div className="max-w-[1700px] mx-auto space-y-7">
               <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 bg-white p-5 md:p-6 rounded-3xl border border-slate-200 shadow-sm">
@@ -885,7 +902,7 @@ export default function Home() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-7">
-                {/* LISTA DE OBRAS */}
+                {/* LISTA DE OBRAS / CARPETAS */}
                 <div className="md:col-span-1 space-y-4">
                   <h3 className="text-sm md:text-base font-extrabold text-slate-500 uppercase tracking-wider">Obras Disponibles</h3>
                   {obrasFiltradas.length === 0 ? (
@@ -915,6 +932,7 @@ export default function Home() {
                                 abrirModalEditarCarpeta(obra);
                               }}
                               className="text-slate-400 hover:text-slate-700 p-1 text-xs"
+                              title="Editar obra"
                             >
                               ✏️
                             </button>
@@ -924,6 +942,7 @@ export default function Home() {
                                 eliminarCarpetaObra(obra.id);
                               }}
                               className="text-rose-400 hover:text-rose-700 p-1 text-xs"
+                              title="Eliminar obra"
                             >
                               🗑️
                             </button>
@@ -934,7 +953,7 @@ export default function Home() {
                   )}
                 </div>
 
-                {/* VISTA DETALLADA DE LA OBRA Y PARTICELAS */}
+                {/* ARCHIVOS Y PARTICELAS DENTRO DE LA OBRA */}
                 <div className="md:col-span-2">
                   {obraSeleccionadaDrive ? (
                     <div className="bg-white p-6 md:p-7 rounded-3xl border border-slate-200 shadow-sm space-y-6">
@@ -953,35 +972,64 @@ export default function Home() {
                             </a>
                           )}
                         </div>
+                        {/* SOLO EL ADMIN PUEDE SUBIR ARCHIVOS PDF AL DRIVE */}
                         {sesionAdmin && (
                           <button
                             onClick={() => setMostrarModalSubirArchivos(true)}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold px-4 md:px-5 py-3 rounded-xl transition cursor-pointer shadow-sm"
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold px-4 md:px-5 py-3 rounded-xl transition cursor-pointer shadow-sm flex items-center gap-2"
                           >
-                            + Subir PDF
+                            <span>📤</span>
+                            <span>Subir PDF al Drive</span>
                           </button>
                         )}
                       </div>
 
                       <div className="space-y-3">
-                        <h4 className="text-sm font-extrabold text-slate-400 uppercase tracking-wider">Particelas / PDF</h4>
+                        <h4 className="text-sm font-extrabold text-slate-400 uppercase tracking-wider">Particelas y Documentos</h4>
                         {particelas.filter((p) => p.obra_id === obraSeleccionadaDrive.id).length === 0 ? (
-                          <p className="text-xs text-slate-400 italic">No hay archivos PDF adjuntos en esta obra.</p>
+                          <p className="text-xs text-slate-400 italic">No hay archivos PDF subidos para esta obra.</p>
                         ) : (
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             {particelas
                               .filter((p) => p.obra_id === obraSeleccionadaDrive.id)
                               .map((p) => (
-                                <a
+                                <div
                                   key={p.id}
-                                  href={p.url_pdf}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="p-4 bg-slate-50 hover:bg-indigo-50/40 border border-slate-200 rounded-xl flex items-center justify-between text-sm font-bold text-slate-700 hover:text-indigo-900 transition"
+                                  className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-sm font-bold text-slate-700 transition"
                                 >
-                                  <span className="truncate pr-2">📄 {p.instrumento}</span>
-                                  <span className="text-xs text-indigo-600 bg-indigo-50 px-2.5 py-1.5 rounded-lg">Abrir</span>
-                                </a>
+                                  <a
+                                    href={p.url_pdf}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="truncate pr-2 hover:text-indigo-600 flex items-center gap-2"
+                                  >
+                                    <span>📄</span>
+                                    <span className="truncate">{p.instrumento}</span>
+                                  </a>
+
+                                  <div className="flex items-center gap-2">
+                                    {/* CUALQUIER USUARIO (ESTUDIANTE / ADMIN) PUEDE VER / DESCARGAR */}
+                                    <a
+                                      href={p.url_pdf}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-xs text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded-lg transition"
+                                    >
+                                      Ver / Descargar
+                                    </a>
+
+                                    {/* SOLO ADMIN PUEDE ELIMINAR EL ARCHIVO */}
+                                    {sesionAdmin && (
+                                      <button
+                                        onClick={() => eliminarParticela(p)}
+                                        className="text-xs text-rose-500 hover:bg-rose-100 p-1.5 rounded-lg transition"
+                                        title="Eliminar archivo"
+                                      >
+                                        🗑️
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
                               ))}
                           </div>
                         )}
@@ -990,7 +1038,7 @@ export default function Home() {
                   ) : (
                     <div className="bg-white p-12 md:p-16 text-center rounded-3xl border border-slate-200 text-slate-400 space-y-3 shadow-sm">
                       <span className="text-3xl block">🎼</span>
-                      <p className="text-base font-medium">Selecciona una obra de la izquierda para ver e imprimir sus particelas.</p>
+                      <p className="text-base font-medium">Selecciona una obra para ver y descargar sus particelas.</p>
                     </div>
                   )}
                 </div>
@@ -998,7 +1046,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* MODULO 2: GESTIÓN DE INTEGRANTES */}
+          {/* MÓDULO 2: GESTIÓN DE INTEGRANTES */}
           {moduloActivo === 'integrantes' && (
             <div className="space-y-4">
               <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 bg-white p-5 md:p-6 rounded-3xl border border-slate-200 shadow-sm">
@@ -1019,7 +1067,6 @@ export default function Home() {
                 )}
               </div>
 
-              {/* VISTA COMPACTA TIPO TARJETAS / FILAS VERSÁTILES */}
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                 {listaIntegrantesMostrables.length === 0 ? (
                   <div className="col-span-full bg-white p-8 text-center text-slate-400 rounded-2xl border border-slate-200 text-sm md:text-base">
@@ -1039,7 +1086,6 @@ export default function Home() {
                             <p className="text-sm font-semibold text-indigo-600">{item.instrumento} • <span className="text-slate-400 font-normal">{item.origen_instrumento}</span></p>
                           </div>
 
-                          {/* BOTÓN O NÚMERO DE REGISTRO LINK A WHATSAPP */}
                           <div className="pt-0.5">
                             {wsUrl ? (
                               <a
@@ -1090,7 +1136,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* MODULO 3: SOLICITUDES PENDIENTES (ADMIN) */}
+          {/* MÓDULO 3: SOLICITUDES PENDIENTES (ADMIN) */}
           {moduloActivo === 'pendientes' && sesionAdmin && (
             <div className="bg-white p-6 md:p-7 rounded-3xl border border-slate-200 shadow-sm space-y-5">
               <h2 className="text-xl md:text-2xl font-extrabold text-slate-900">Solicitudes de Inscripción Pendientes</h2>
@@ -1137,7 +1183,7 @@ export default function Home() {
           )}
         </>
       ) : (
-        /* VISTA PÚBLICA (SOLO MUESTRA BIENVENIDA) */
+        /* VISTA PÚBLICA */
         <div className="bg-white p-10 md:p-16 rounded-3xl border border-slate-200 shadow-sm text-center max-w-3xl mx-auto my-12 space-y-7">
           <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center mx-auto text-3xl shadow-xs">
             🎼
@@ -1384,7 +1430,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL CREAR CARPETA OBRA */}
+      {/* MODAL CREAR CARPETA OBRA (SOLO ADMIN) */}
       {mostrarModalNuevaCarpeta && sesionAdmin && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-md relative shadow-2xl space-y-4">
@@ -1402,7 +1448,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL EDITAR CARPETA OBRA */}
+      {/* MODAL EDITAR CARPETA OBRA (SOLO ADMIN) */}
       {mostrarModalEditarCarpeta && sesionAdmin && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-md relative shadow-2xl space-y-4">
@@ -1420,12 +1466,12 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL SUBIR ARCHIVOS DE PARTITURAS */}
+      {/* MODAL SUBIR ARCHIVOS DE PARTITURAS AL BUCKET 'drive' (SOLO ADMIN) */}
       {mostrarModalSubirArchivos && sesionAdmin && obraSeleccionadaDrive && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white border border-slate-200 p-6 rounded-3xl w-full max-w-md relative shadow-2xl space-y-4">
             <button onClick={() => setMostrarModalSubirArchivos(false)} className="absolute top-4 right-4 text-slate-400 font-bold cursor-pointer">✕</button>
-            <h2 className="text-xl md:text-2xl font-extrabold text-slate-900">Subir Particelas PDF</h2>
+            <h2 className="text-xl md:text-2xl font-extrabold text-slate-900">Subir Particelas al Drive</h2>
             <p className="text-sm text-slate-500 mt-1">Obra: <strong>{obraSeleccionadaDrive.titulo}</strong></p>
             <form onSubmit={subirArchivosSeleccionados} className="space-y-4">
               <input
@@ -1441,7 +1487,7 @@ export default function Home() {
                 disabled={subiendoArchivos}
                 className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm transition cursor-pointer disabled:opacity-50"
               >
-                {subiendoArchivos ? 'Subiendo archivos...' : 'Subir a Supabase'}
+                {subiendoArchivos ? 'Subiendo a Supabase (Drive)...' : 'Subir a Supabase'}
               </button>
             </form>
           </div>
